@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import api from '../services/api'
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import {
   Container,
   Paper,
@@ -30,6 +30,7 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
     setLoading(true);
 
     try {
+      // ВАЖНО: используем POST, а не GET!
       const response = await api.post('/login/', loginData);
       
       localStorage.setItem('token', response.data.token);
@@ -44,7 +45,6 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
         setTeacher(response.data.teacher);
       }
       
-      // Перенаправляем на главную страницу
       navigate('/generator');
       
     } catch (err) {
