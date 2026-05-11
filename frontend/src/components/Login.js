@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../services/api'
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -30,7 +30,7 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/api/tickets/login/', loginData);
+      const response = await api.post('/login/', loginData);
       
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -60,7 +60,7 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/api/tickets/login/', {
+      const response = await api.post('/login/', {
         username: 'demo',
         password: 'demo123'
       });

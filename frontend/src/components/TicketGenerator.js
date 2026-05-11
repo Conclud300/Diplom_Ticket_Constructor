@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import {
   Container,
   Paper,
@@ -86,12 +86,12 @@ const TicketGenerator = ({ teacher, user }) => {
       
       // Загружаем данные из Django API
       const [subjectsRes, groupsRes, chairmenRes, teachersRes, deputiesRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/tickets/subjects/'),
-        axios.get('http://localhost:8000/api/tickets/groups/'),
-        axios.get('http://localhost:8000/api/tickets/chairmen/'),
-        axios.get('http://localhost:8000/api/tickets/teachers/'),
-        axios.get('http://localhost:8000/api/tickets/deputy-directors/')
-      ]);
+  api.get('/subjects/'),
+  api.get('/groups/'),
+  api.get('/chairmen/'),
+  api.get('/teachers/'),
+  api.get('/deputy-directors/')
+]);
 
       setSubjects(subjectsRes.data);
       setGroups(groupsRes.data);
@@ -165,7 +165,7 @@ const TicketGenerator = ({ teacher, user }) => {
         const course = groups.find(g => selectedGroups.includes(g.id))?.course || 1;
         
         const response = await axios.get(
-          `http://localhost:8000/api/tickets/statistics/?subject_id=${selectedSubject}&course=${course}`
+            `/statistics/?subject_id=${selectedSubject}&course=${course}`
         );
         
         console.log('Статистика заданий:', response.data);
@@ -222,86 +222,87 @@ const TicketGenerator = ({ teacher, user }) => {
   };
 
   // Генерация билетов
-  const handleGenerate = async () => {
-    if (!validateParameters()) return;
+const handleGenerate = async () => {
+  if (!validateParameters()) return;
 
-    setLoading(true);
-    setError('');
-    setSuccess('');
+  setLoading(true);
+  setError('');
+  setSuccess('');
 
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Подготавливаем данные для отправки
-      const generationData = {
-        subject_id: selectedSubject,
-        group_ids: selectedGroups,
-        chairman_id: selectedChairman,
-        teacher_ids: selectedTeachers,
-        deputy_director_id: selectedDeputyDirector || null,
-        num_tickets: numTickets,
-        oral_per_ticket: oralPerTicket,
-        practical_per_ticket: includePractical ? practicalPerTicket : 0,
-        semester: semester
-      };
-
-      console.log('Отправка данных для генерации:', generationData);
-      
-      // Отправляем запрос на генерацию билетов
-      const response = await axios.post(
-        'http://localhost:8000/api/tickets/generate/',
-        generationData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Token ${token}` })
-          }
-        }
-      );
-
-      console.log('Ответ от сервера:', response.data);
-      
-      // Преобразуем данные для отображения
-      const formattedTickets = response.data.tickets.map(ticket => ({
-        id: ticket.id || ticket.ticket_number,
-        ticket_number: ticket.ticket_number,
-        subject: ticket.subject,
-        groups: ticket.groups,
-        chairman: ticket.chairman,
-        teacher: ticket.teacher,
-        semester: ticket.semester,
-        tasks: ticket.tasks.map(task => ({
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          task_type: task.task_type,
-          order: task.order
-        }))
-      }));
-
-      setGeneratedTickets(formattedTickets);
-      setPreviewTicket(formattedTickets[0]);
-      
-      // Обновляем статистику после генерации
-      if (response.data.available_oral && response.data.available_practical) {
-        setTasksStats({
-          oral: response.data.available_oral,
-          practical: response.data.available_practical
-        });
-      }
-      
-      // Обновляем данные из базы
-      handleRefresh();
-      
-      setSuccess(`Успешно сгенерировано ${response.data.tickets_count} билетов!`);
-      
-    } catch (err) {
-      console.error('Ошибка генерации билетов:', err);
-      setError(err.response?.data?.error || 'Ошибка при генерации билетов');
-    } finally {
+  try {
+    const token = localStorage.getItem('token');
+    
+    // Проверка наличия токена
+    if (!token) {
+      setError('Ошибка авторизации. Пожалуйста, войдите заново.');
       setLoading(false);
+      return;
     }
-  };
+    
+    // Подготавливаем данные для отправки
+    const generationData = {
+      subject_id: selectedSubject,
+      group_ids: selectedGroups,
+      chairman_id: selectedChairman,
+      teacher_ids: selectedTeachers,
+      deputy_director_id: selectedDeputyDirector || null,
+      num_tickets: numTickets,
+      oral_per_ticket: oralPerTicket,
+      practical_per_ticket: includePractical ? practicalPerTicket : 0,
+      semester: semester
+    };
+
+    console.log('Отправка данных для генерации:', generationData);
+    
+    // Отправляем запрос на генерацию билетов с ТОКЕНОМ!
+const response = await api.post('/generate/', generationData);
+
+    console.log('Ответ от сервера:', response.data);
+    
+    // ... остальной код обработки ответа
+    const formattedTickets = response.data.tickets.map(ticket => ({
+      id: ticket.id || ticket.ticket_number,
+      ticket_number: ticket.ticket_number,
+      subject: ticket.subject,
+      groups: ticket.groups,
+      chairman: ticket.chairman,
+      teacher: ticket.teacher,
+      semester: ticket.semester,
+      tasks: ticket.tasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        task_type: task.task_type,
+        order: task.order
+      }))
+    }));
+
+    setGeneratedTickets(formattedTickets);
+    setPreviewTicket(formattedTickets[0]);
+    
+    // Обновляем статистику
+    if (response.data.available_oral && response.data.available_practical) {
+      setTasksStats({
+        oral: response.data.available_oral,
+        practical: response.data.available_practical
+      });
+    }
+    
+    setSuccess(`Успешно сгенерировано ${response.data.tickets_count} билетов!`);
+    
+  } catch (err) {
+    console.error('Ошибка генерации билетов:', err);
+    if (err.response?.status === 401) {
+      setError('Сессия истекла. Пожалуйста, войдите заново.');
+      // Опционально: перенаправить на страницу входа
+      // navigate('/login');
+    } else {
+      setError(err.response?.data?.error || 'Ошибка при генерации билетов');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Генерация PDF
   const handleDownloadPDF = async () => {
@@ -316,16 +317,13 @@ const TicketGenerator = ({ teacher, user }) => {
       // Собираем ID всех сгенерированных билетов
       const ticketIds = generatedTickets.map(ticket => ticket.id);
       
-      const response = await axios.post(
-        'http://localhost:8000/api/tickets/generate-pdf/',
-        { ticket_ids: ticketIds },
-        {
-          responseType: 'blob',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      const response = await api.post(
+  '/generate-pdf/',
+  { ticket_ids: ticketIds },
+  {
+    responseType: 'blob'
+  }
+);
       
       // Создание ссылки для скачивания HTML файла
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/html' }));
