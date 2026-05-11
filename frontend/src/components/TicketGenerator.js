@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
-import axios from 'axios';
 import {
   Container,
   Paper,
@@ -38,7 +37,6 @@ import {
   Print as PrintIcon,
   Settings as SettingsIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
   Refresh as RefreshIcon
@@ -55,7 +53,7 @@ const TicketGenerator = ({ teacher, user }) => {
   const [tasksStats, setTasksStats] = useState({ oral: 0, practical: 0 });
   const [apiError, setApiError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Добавляем ключ для принудительного обновления
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Параметры генерации
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -85,14 +83,13 @@ const TicketGenerator = ({ teacher, user }) => {
     try {
       console.log('Загрузка данных из Django API...');
       
-      // Загружаем данные из Django API
       const [subjectsRes, groupsRes, chairmenRes, teachersRes, deputiesRes] = await Promise.all([
-  api.get('/subjects/'),
-  api.get('/groups/'),
-  api.get('/chairmen/'),
-  api.get('/teachers/'),
-  api.get('/deputy-directors/')
-]);
+        api.get('/subjects/'),
+        api.get('/groups/'),
+        api.get('/chairmen/'),
+        api.get('/teachers/'),
+        api.get('/deputy-directors/')
+      ]);
 
       setSubjects(subjectsRes.data);
       setGroups(groupsRes.data);
@@ -109,7 +106,6 @@ const TicketGenerator = ({ teacher, user }) => {
       console.log('- Председатели:', chairmenRes.data.length);
       console.log('- Преподаватели:', teachersRes.data.length);
       
-      // Если есть данные, выбираем первые по умолчанию (только если еще не выбраны)
       if (subjectsRes.data.length > 0 && !selectedSubject) {
         setSelectedSubject(subjectsRes.data[0].id);
       }
@@ -119,7 +115,6 @@ const TicketGenerator = ({ teacher, user }) => {
       if (chairmenRes.data.length > 0 && !selectedChairman) {
         setSelectedChairman(chairmenRes.data[0].id);
       }
-      // Автоматически выбираем текущего преподавателя
       if (teacher?.id && teachersRes.data.some(t => t.id === teacher.id) && selectedTeachers.length === 0) {
         setSelectedTeachers([teacher.id]);
       } else if (teachersRes.data.length > 0 && selectedTeachers.length === 0) {
@@ -152,10 +147,10 @@ const TicketGenerator = ({ teacher, user }) => {
     }
   }, [teacher, selectedSubject, selectedGroups.length, selectedChairman, selectedTeachers.length]);
 
-  // Загрузка данных при монтировании и при изменении refreshKey
+  // Загрузка данных при монтировании
   useEffect(() => {
     fetchData();
-  }, [fetchData, refreshKey]); // Добавляем refreshKey в зависимости
+  }, [fetchData, refreshKey]);
 
   // Загрузка статистики заданий при выборе предмета и курса
   useEffect(() => {
@@ -165,9 +160,8 @@ const TicketGenerator = ({ teacher, user }) => {
       try {
         const course = groups.find(g => selectedGroups.includes(g.id))?.course || 1;
         
-        const response = await axios.get(
-            `/statistics/?subject_id=${selectedSubject}&course=${course}`
-        );
+        // ✅ ИСПРАВЛЕНО: используем api.get вместо axios.get
+        const response = await api.get(`/statistics/?subject_id=${selectedSubject}&course=${course}`);
         
         console.log('Статистика заданий:', response.data);
         
@@ -182,11 +176,11 @@ const TicketGenerator = ({ teacher, user }) => {
     };
     
     fetchTasksStats();
-  }, [selectedSubject, selectedGroups, groups, refreshKey]); // Добавляем refreshKey в зависимости
+  }, [selectedSubject, selectedGroups, groups, refreshKey]);
 
   // Функция для принудительного обновления всех данных
   const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1); // Изменяем ключ, что вызывает перезагрузку всех данных
+    setRefreshKey(prev => prev + 1);
     setSuccess('Данные обновлены');
     setTimeout(() => setSuccess(''), 3000);
   };
@@ -199,11 +193,10 @@ const TicketGenerator = ({ teacher, user }) => {
     if (selectedGroups.length === 0) errors.push('Выберите хотя бы одну группу');
     if (!selectedChairman) errors.push('Выберите председателя ПЦК');
     if (selectedTeachers.length === 0) errors.push('Выберите хотя бы одного преподавателя');
-    if (numTickets < 1 || numTickets > 1000) errors.push('Количество билетов должно быть от 1 до 1000'); // Увеличил до 1000
+    if (numTickets < 1 || numTickets > 1000) errors.push('Количество билетов должно быть от 1 до 1000');
     if (oralPerTicket < 1) errors.push('Количество устных заданий должно быть не менее 1');
     if (includePractical && practicalPerTicket < 1) errors.push('Количество практических заданий должно быть не менее 1');
     
-    // Проверка достаточности заданий
     const requiredOral = numTickets * oralPerTicket;
     const requiredPractical = numTickets * (includePractical ? practicalPerTicket : 0);
     
@@ -223,87 +216,80 @@ const TicketGenerator = ({ teacher, user }) => {
   };
 
   // Генерация билетов
-const handleGenerate = async () => {
-  if (!validateParameters()) return;
+  const handleGenerate = async () => {
+    if (!validateParameters()) return;
 
-  setLoading(true);
-  setError('');
-  setSuccess('');
+    setLoading(true);
+    setError('');
+    setSuccess('');
 
-  try {
-    const token = localStorage.getItem('token');
-    
-    // Проверка наличия токена
-    if (!token) {
-      setError('Ошибка авторизации. Пожалуйста, войдите заново.');
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('Ошибка авторизации. Пожалуйста, войдите заново.');
+        setLoading(false);
+        return;
+      }
+      
+      const generationData = {
+        subject_id: selectedSubject,
+        group_ids: selectedGroups,
+        chairman_id: selectedChairman,
+        teacher_ids: selectedTeachers,
+        deputy_director_id: selectedDeputyDirector || null,
+        num_tickets: numTickets,
+        oral_per_ticket: oralPerTicket,
+        practical_per_ticket: includePractical ? practicalPerTicket : 0,
+        semester: semester
+      };
+
+      console.log('Отправка данных для генерации:', generationData);
+      
+      const response = await api.post('/generate/', generationData);
+
+      console.log('Ответ от сервера:', response.data);
+      
+      const formattedTickets = response.data.tickets.map(ticket => ({
+        id: ticket.id || ticket.ticket_number,
+        ticket_number: ticket.ticket_number,
+        subject: ticket.subject,
+        groups: ticket.groups,
+        chairman: ticket.chairman,
+        teacher: ticket.teacher,
+        semester: ticket.semester,
+        tasks: ticket.tasks.map(task => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          task_type: task.task_type,
+          order: task.order
+        }))
+      }));
+
+      setGeneratedTickets(formattedTickets);
+      setPreviewTicket(formattedTickets[0]);
+      
+      if (response.data.available_oral && response.data.available_practical) {
+        setTasksStats({
+          oral: response.data.available_oral,
+          practical: response.data.available_practical
+        });
+      }
+      
+      setSuccess(`Успешно сгенерировано ${response.data.tickets_count} билетов!`);
+      
+    } catch (err) {
+      console.error('Ошибка генерации билетов:', err);
+      if (err.response?.status === 401) {
+        setError('Сессия истекла. Пожалуйста, войдите заново.');
+      } else {
+        setError(err.response?.data?.error || 'Ошибка при генерации билетов');
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-    
-    // Подготавливаем данные для отправки
-    const generationData = {
-      subject_id: selectedSubject,
-      group_ids: selectedGroups,
-      chairman_id: selectedChairman,
-      teacher_ids: selectedTeachers,
-      deputy_director_id: selectedDeputyDirector || null,
-      num_tickets: numTickets,
-      oral_per_ticket: oralPerTicket,
-      practical_per_ticket: includePractical ? practicalPerTicket : 0,
-      semester: semester
-    };
-
-    console.log('Отправка данных для генерации:', generationData);
-    
-    // Отправляем запрос на генерацию билетов с ТОКЕНОМ!
-const response = await api.post('/generate/', generationData);
-
-    console.log('Ответ от сервера:', response.data);
-    
-    // ... остальной код обработки ответа
-    const formattedTickets = response.data.tickets.map(ticket => ({
-      id: ticket.id || ticket.ticket_number,
-      ticket_number: ticket.ticket_number,
-      subject: ticket.subject,
-      groups: ticket.groups,
-      chairman: ticket.chairman,
-      teacher: ticket.teacher,
-      semester: ticket.semester,
-      tasks: ticket.tasks.map(task => ({
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        task_type: task.task_type,
-        order: task.order
-      }))
-    }));
-
-    setGeneratedTickets(formattedTickets);
-    setPreviewTicket(formattedTickets[0]);
-    
-    // Обновляем статистику
-    if (response.data.available_oral && response.data.available_practical) {
-      setTasksStats({
-        oral: response.data.available_oral,
-        practical: response.data.available_practical
-      });
-    }
-    
-    setSuccess(`Успешно сгенерировано ${response.data.tickets_count} билетов!`);
-    
-  } catch (err) {
-    console.error('Ошибка генерации билетов:', err);
-    if (err.response?.status === 401) {
-      setError('Сессия истекла. Пожалуйста, войдите заново.');
-      // Опционально: перенаправить на страницу входа
-      // navigate('/login');
-    } else {
-      setError(err.response?.data?.error || 'Ошибка при генерации билетов');
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Генерация PDF
   const handleDownloadPDF = async () => {
@@ -315,18 +301,10 @@ const response = await api.post('/generate/', generationData);
     try {
       setLoading(true);
       
-      // Собираем ID всех сгенерированных билетов
       const ticketIds = generatedTickets.map(ticket => ticket.id);
       
-      const response = await api.post(
-  '/generate-pdf/',
-  { ticket_ids: ticketIds },
-  {
-    responseType: 'blob'
-  }
-);
+      const response = await api.post('/generate-pdf/', { ticket_ids: ticketIds }, { responseType: 'blob' });
       
-      // Создание ссылки для скачивания HTML файла
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/html' }));
       const link = document.createElement('a');
       link.href = url;
@@ -340,7 +318,6 @@ const response = await api.post('/generate/', generationData);
     } catch (error) {
       console.error('Ошибка генерации PDF:', error);
       setError('Ошибка при генерации файла. Используйте кнопку "Печать" для создания билетов.');
-      // Fallback на печать
       handlePrint();
     } finally {
       setLoading(false);
@@ -354,10 +331,8 @@ const response = await api.post('/generate/', generationData);
     }
 
     try {
-      // Создаем новое окно для печати
       const printWindow = window.open('', '_blank');
       
-      // Создаем HTML по шаблону
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -365,133 +340,33 @@ const response = await api.post('/generate/', generationData);
           <meta charset="utf-8">
           <title>Экзаменационные билеты</title>
           <style>
-            @page {
-              size: A4;
-              margin: 1.5cm;
-            }
-            body {
-              font-family: 'Times New Roman', Times, serif;
-              font-size: 12pt;
-              line-height: 1.5;
-              margin: 0;
-              padding: 0;
-            }
-            .page-break {
-              page-break-after: always;
-            }
-            .ticket {
-              margin-bottom: 2cm;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 0.5cm;
-            }
-            .ministry {
-              font-size: 11pt;
-              font-weight: bold;
-              margin-bottom: 5px;
-            }
-            .university {
-              font-size: 11pt;
-              margin-bottom: 3px;
-            }
-            .institute {
-              font-size: 11pt;
-              margin-bottom: 0.5cm;
-            }
-            .ticket-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 1cm;
-            }
-            .ticket-table td {
-              border: 1px solid #000;
-              padding: 8px;
-              vertical-align: top;
-            }
-            .left-column {
-              width: 40%;
-            }
-            .middle-column {
-              width: 40%;
-              text-align: center;
-            }
-            .right-column {
-              width: 20%;
-            }
-            .protocol {
-              font-size: 10pt;
-              line-height: 1.3;
-            }
-            .ticket-number {
-              font-size: 14pt;
-              font-weight: bold;
-              margin-bottom: 5px;
-            }
-            .qualification {
-              font-size: 11pt;
-              font-weight: bold;
-              margin-bottom: 10px;
-            }
-            .groups {
-              font-size: 10pt;
-              margin-bottom: 5px;
-            }
-            .semester {
-              font-size: 10pt;
-            }
-            .approval {
-              font-size: 10pt;
-              text-align: right;
-              line-height: 1.3;
-            }
-            .subject-header {
-              font-size: 11pt;
-              font-weight: bold;
-              text-align: center;
-              margin: 0.5cm 0;
-              padding: 5px;
-              background-color: #f0f0f0;
-            }
-            .tasks {
-              margin: 0.5cm 0;
-            }
-            .task {
-              margin: 10px 0;
-              padding-left: 15px;
-              text-align: justify;
-            }
-            .task-number {
-              font-weight: bold;
-            }
-            .task-title {
-              font-weight: bold;
-              margin-bottom: 5px;
-            }
-            .task-description {
-              font-size: 11pt;
-              line-height: 1.4;
-            }
-            .formulas {
-              font-family: 'Courier New', monospace;
-              font-size: 10pt;
-              margin: 10px 20px;
-              padding: 10px;
-              background-color: #f9f9f9;
-              border-left: 3px solid #ccc;
-            }
-            .teachers {
-              margin-top: 1cm;
-              font-size: 11pt;
-              border-top: 1px solid #000;
-              padding-top: 10px;
-            }
-            @media print {
-              body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-            }
+            @page { size: A4; margin: 1.5cm; }
+            body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; margin: 0; padding: 0; }
+            .page-break { page-break-after: always; }
+            .ticket { margin-bottom: 2cm; }
+            .header { text-align: center; margin-bottom: 0.5cm; }
+            .ministry { font-size: 11pt; font-weight: bold; margin-bottom: 5px; }
+            .university { font-size: 11pt; margin-bottom: 3px; }
+            .institute { font-size: 11pt; margin-bottom: 0.5cm; }
+            .ticket-table { width: 100%; border-collapse: collapse; margin-bottom: 1cm; }
+            .ticket-table td { border: 1px solid #000; padding: 8px; vertical-align: top; }
+            .left-column { width: 40%; }
+            .middle-column { width: 40%; text-align: center; }
+            .right-column { width: 20%; }
+            .protocol { font-size: 10pt; line-height: 1.3; }
+            .ticket-number { font-size: 14pt; font-weight: bold; margin-bottom: 5px; }
+            .qualification { font-size: 11pt; font-weight: bold; margin-bottom: 10px; }
+            .groups { font-size: 10pt; margin-bottom: 5px; }
+            .semester { font-size: 10pt; }
+            .approval { font-size: 10pt; text-align: right; line-height: 1.3; }
+            .subject-header { font-size: 11pt; font-weight: bold; text-align: center; margin: 0.5cm 0; padding: 5px; background-color: #f0f0f0; }
+            .tasks { margin: 0.5cm 0; }
+            .task { margin: 10px 0; padding-left: 15px; text-align: justify; }
+            .task-number { font-weight: bold; }
+            .task-title { font-weight: bold; margin-bottom: 5px; }
+            .task-description { font-size: 11pt; line-height: 1.4; }
+            .teachers { margin-top: 1cm; font-size: 11pt; border-top: 1px solid #000; padding-top: 10px; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
           </style>
         </head>
         <body>
@@ -544,15 +419,6 @@ const response = await api.post('/generate/', generationData);
                     <div class="task-number">${taskIdx + 1}.</div>
                     <div class="task-title">${task.title}</div>
                     <div class="task-description">${task.description || ''}</div>
-                    ${task.description && (task.description.includes('формул') || task.description.includes('=')) ? `
-                      <div class="formulas">
-                        Формулы для справки:<br>
-                        Δ = a₁b₂ - a₂b₁<br>
-                        Δ₁ = c₁b₂ - c₂b₁<br>
-                        Δ₂ = a₁c₂ - a₂c₁<br>
-                        x = Δ₁/Δ, y = Δ₂/Δ
-                      </div>
-                    ` : ''}
                   </div>
                 `).join('') || ''}
               </div>
@@ -570,12 +436,9 @@ const response = await api.post('/generate/', generationData);
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       
-      // Ждем загрузки и открываем печать
       printWindow.onload = function() {
         printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
+        setTimeout(() => printWindow.print(), 500);
       };
       
       setSuccess('Открыто окно для печати билетов');
@@ -598,7 +461,6 @@ const response = await api.post('/generate/', generationData);
     setSuccess('');
   };
 
-  // Статистика по заданиям
   const totalOralTasks = tasksStats.oral;
   const totalPracticalTasks = tasksStats.practical;
   const requiredOral = numTickets * oralPerTicket;
@@ -606,21 +468,16 @@ const response = await api.post('/generate/', generationData);
   const hasEnoughOral = totalOralTasks >= requiredOral;
   const hasEnoughPractical = totalPracticalTasks >= requiredPractical;
 
-  // Навигация по билетам
   const handlePrevTicket = () => {
     if (!previewTicket || generatedTickets.length === 0) return;
     const currentIndex = generatedTickets.findIndex(t => t.id === previewTicket.id);
-    if (currentIndex > 0) {
-      setPreviewTicket(generatedTickets[currentIndex - 1]);
-    }
+    if (currentIndex > 0) setPreviewTicket(generatedTickets[currentIndex - 1]);
   };
 
   const handleNextTicket = () => {
     if (!previewTicket || generatedTickets.length === 0) return;
     const currentIndex = generatedTickets.findIndex(t => t.id === previewTicket.id);
-    if (currentIndex < generatedTickets.length - 1) {
-      setPreviewTicket(generatedTickets[currentIndex + 1]);
-    }
+    if (currentIndex < generatedTickets.length - 1) setPreviewTicket(generatedTickets[currentIndex + 1]);
   };
 
   return (
@@ -629,17 +486,9 @@ const response = await api.post('/generate/', generationData);
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
           🎫 Конструктор экзаменационных билетов
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={loadingData}
-            size="small"
-          >
-            Обновить данные
-          </Button>
-        </Box>
+        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={handleRefresh} disabled={loadingData} size="small">
+          Обновить данные
+        </Button>
       </Box>
       
       {lastUpdated && (
@@ -671,18 +520,13 @@ const response = await api.post('/generate/', generationData);
             <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                  Параметры генерации
-                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Параметры генерации</Typography>
               </Box>
               
               <Divider sx={{ mb: 3 }} />
               
-              {/* Информация о загруженных данных */}
               <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f7ff', borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  📊 Данные из Django админки:
-                </Typography>
+                <Typography variant="subtitle2" gutterBottom>📊 Данные из Django админки:</Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Chip label={`${subjects.length} предметов`} size="small" color="primary" variant="outlined" />
                   <Chip label={`${groups.length} групп`} size="small" color="secondary" variant="outlined" />
@@ -691,354 +535,115 @@ const response = await api.post('/generate/', generationData);
                 </Box>
               </Box>
               
-              {/* Основные параметры */}
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: '#555' }}>
-                Основные параметры
-              </Typography>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: '#555' }}>Основные параметры</Typography>
               
               <FormControl fullWidth margin="normal">
                 <InputLabel>Предмет *</InputLabel>
-                <Select
-                  value={selectedSubject}
-                  label="Предмет *"
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  disabled={subjects.length === 0}
-                >
-                  {subjects.length === 0 ? (
-                    <MenuItem value="">Нет данных</MenuItem>
-                  ) : (
-                    subjects.map((subject) => (
-                      <MenuItem key={subject.id} value={subject.id}>
-                        <Box>
-                          <Typography variant="body1">{subject.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Код: {subject.code} | Курс: {subject.course} | Часы: {subject.hours}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
+                <Select value={selectedSubject} label="Предмет *" onChange={(e) => setSelectedSubject(e.target.value)} disabled={subjects.length === 0}>
+                  {subjects.length === 0 ? <MenuItem value="">Нет данных</MenuItem> : subjects.map((subject) => (
+                    <MenuItem key={subject.id} value={subject.id}>
+                      <Box><Typography variant="body1">{subject.name}</Typography><Typography variant="caption" color="text.secondary">Код: {subject.code} | Курс: {subject.course} | Часы: {subject.hours}</Typography></Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
               <FormControl fullWidth margin="normal">
                 <InputLabel>Зам. директора ИСПО</InputLabel>
-                <Select
-                  value={selectedDeputyDirector}
-                  label="Зам. директора ИСПО"
-                  onChange={(e) => setSelectedDeputyDirector(e.target.value)}
-                  disabled={deputyDirectors.length === 0}
-                >
+                <Select value={selectedDeputyDirector} label="Зам. директора ИСПО" onChange={(e) => setSelectedDeputyDirector(e.target.value)} disabled={deputyDirectors.length === 0}>
                   <MenuItem value="">Не выбрано</MenuItem>
-                  {deputyDirectors.length === 0 ? (
-                    <MenuItem value="">Нет данных</MenuItem>
-                  ) : (
-                    deputyDirectors.map((deputy) => (
-                      <MenuItem key={deputy.id} value={deputy.id}>
-                        <Box>
-                          <Typography variant="body1">{deputy.full_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {deputy.position} ({deputy.short_name})
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
+                  {deputyDirectors.map((deputy) => (
+                    <MenuItem key={deputy.id} value={deputy.id}>
+                      <Box><Typography variant="body1">{deputy.full_name}</Typography><Typography variant="caption" color="text.secondary">{deputy.position} ({deputy.short_name})</Typography></Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
               <FormControl fullWidth margin="normal">
                 <InputLabel>Группы *</InputLabel>
-                <Select
-                  multiple
-                  value={selectedGroups}
-                  label="Группы *"
-                  onChange={(e) => setSelectedGroups(e.target.value)}
-                  disabled={groups.length === 0}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((groupId) => {
-                        const group = groups.find(g => g.id === groupId);
-                        return group ? (
-                          <Chip 
-                            key={groupId} 
-                            label={group.name} 
-                            size="small"
-                            onDelete={() => {
-                              setSelectedGroups(selectedGroups.filter(id => id !== groupId));
-                            }}
-                          />
-                        ) : null;
-                      })}
-                    </Box>
-                  )}
-                >
-                  {groups.length === 0 ? (
-                    <MenuItem value="">Нет данных</MenuItem>
-                  ) : (
-                    groups.map((group) => (
-                      <MenuItem key={group.id} value={group.id}>
-                        <Box>
-                          <Typography variant="body1">{group.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {group.specialty} | {group.course} курс
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
+                <Select multiple value={selectedGroups} label="Группы *" onChange={(e) => setSelectedGroups(e.target.value)} disabled={groups.length === 0} renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((groupId) => {
+                      const group = groups.find(g => g.id === groupId);
+                      return group ? <Chip key={groupId} label={group.name} size="small" onDelete={() => setSelectedGroups(selectedGroups.filter(id => id !== groupId))} /> : null;
+                    })}
+                  </Box>
+                )}>
+                  {groups.map((group) => (
+                    <MenuItem key={group.id} value={group.id}>
+                      <Box><Typography variant="body1">{group.name}</Typography><Typography variant="caption" color="text.secondary">{group.specialty} | {group.course} курс</Typography></Box>
+                    </MenuItem>
+                  ))}
                 </Select>
-                <Typography variant="caption" color="text.secondary">
-                  Выбрано: {selectedGroups.length} групп
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Выбрано: {selectedGroups.length} групп</Typography>
               </FormControl>
               
               <FormControl fullWidth margin="normal">
                 <InputLabel>Председатель ПЦК *</InputLabel>
-                <Select
-                  value={selectedChairman}
-                  label="Председатель ПЦК *"
-                  onChange={(e) => setSelectedChairman(e.target.value)}
-                  disabled={chairmen.length === 0}
-                >
-                  {chairmen.length === 0 ? (
-                    <MenuItem value="">Нет данных</MenuItem>
-                  ) : (
-                    chairmen.map((chairman) => (
-                      <MenuItem key={chairman.id} value={chairman.id}>
-                        <Box>
-                          <Typography variant="body1">{chairman.full_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {chairman.position}, {chairman.department}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
+                <Select value={selectedChairman} label="Председатель ПЦК *" onChange={(e) => setSelectedChairman(e.target.value)} disabled={chairmen.length === 0}>
+                  {chairmen.map((chairman) => (
+                    <MenuItem key={chairman.id} value={chairman.id}>
+                      <Box><Typography variant="body1">{chairman.full_name}</Typography><Typography variant="caption" color="text.secondary">{chairman.position}, {chairman.department}</Typography></Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               
               <FormControl fullWidth margin="normal">
                 <InputLabel>Преподаватель(и) *</InputLabel>
-                <Select
-                  multiple
-                  value={selectedTeachers}
-                  label="Преподаватель(и) *"
-                  onChange={(e) => setSelectedTeachers(e.target.value)}
-                  disabled={teachers.length === 0}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((teacherId) => {
-                        const teacherObj = teachers.find(t => t.id === teacherId);
-                        return teacherObj ? (
-                          <Chip 
-                            key={teacherId} 
-                            label={teacherObj.full_name} 
-                            size="small"
-                            onDelete={() => {
-                              setSelectedTeachers(selectedTeachers.filter(id => id !== teacherId));
-                            }}
-                          />
-                        ) : null;
-                      })}
-                    </Box>
-                  )}
-                >
-                  {teachers.length === 0 ? (
-                    <MenuItem value="">Нет данных</MenuItem>
-                  ) : (
-                    teachers.map((teacherItem) => (
-                      <MenuItem key={teacherItem.id} value={teacherItem.id}>
-                        <Box>
-                          <Typography variant="body1">{teacherItem.full_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {teacherItem.department} | {teacherItem.position}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
+                <Select multiple value={selectedTeachers} label="Преподаватель(и) *" onChange={(e) => setSelectedTeachers(e.target.value)} disabled={teachers.length === 0} renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((teacherId) => {
+                      const teacherObj = teachers.find(t => t.id === teacherId);
+                      return teacherObj ? <Chip key={teacherId} label={teacherObj.full_name} size="small" onDelete={() => setSelectedTeachers(selectedTeachers.filter(id => id !== teacherId))} /> : null;
+                    })}
+                  </Box>
+                )}>
+                  {teachers.map((teacherItem) => (
+                    <MenuItem key={teacherItem.id} value={teacherItem.id}>
+                      <Box><Typography variant="body1">{teacherItem.full_name}</Typography><Typography variant="caption" color="text.secondary">{teacherItem.department} | {teacherItem.position}</Typography></Box>
+                    </MenuItem>
+                  ))}
                 </Select>
-                <Typography variant="caption" color="text.secondary">
-                  Выбрано: {selectedTeachers.length} преподавателей
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Выбрано: {selectedTeachers.length} преподавателей</Typography>
               </FormControl>
               
-              <TextField
-                fullWidth
-                label="Семестр"
-                type="number"
-                margin="normal"
-                value={semester}
-                onChange={(e) => setSemester(e.target.value)}
-                InputProps={{ inputProps: { min: 1, max: 10 } }}
-              />
+              <TextField fullWidth label="Семестр" type="number" margin="normal" value={semester} onChange={(e) => setSemester(e.target.value)} InputProps={{ inputProps: { min: 1, max: 10 } }} />
               
-              {/* Статистика заданий */}
               {selectedSubject && (
                 <Paper variant="outlined" sx={{ mt: 2, p: 2, bgcolor: '#f9f9f9' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    📝 Доступные задания для выбранного предмета:
-                  </Typography>
+                  <Typography variant="subtitle2" gutterBottom>📝 Доступные задания для выбранного предмета:</Typography>
                   <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
-                    <Box>
-                      <Typography variant="body2">
-                        <Box component="span" sx={{ 
-                          color: hasEnoughOral ? '#2e7d32' : '#d32f2f',
-                          fontWeight: 'bold'
-                        }}>
-                          {hasEnoughOral ? '✅' : '❌'} Устные: {totalOralTasks}
-                        </Box>
-                        <br />
-                        <Typography variant="caption" color="text.secondary">
-                          Нужно: {requiredOral}
-                        </Typography>
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2">
-                        <Box component="span" sx={{ 
-                          color: hasEnoughPractical ? '#2e7d32' : '#d32f2f',
-                          fontWeight: 'bold'
-                        }}>
-                          {hasEnoughPractical ? '✅' : '❌'} Практические: {totalPracticalTasks}
-                        </Box>
-                        <br />
-                        <Typography variant="caption" color="text.secondary">
-                          Нужно: {requiredPractical}
-                        </Typography>
-                      </Typography>
-                    </Box>
+                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughOral ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughOral ? '✅' : '❌'} Устные: {totalOralTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredOral}</Typography></Typography></Box>
+                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughPractical ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughPractical ? '✅' : '❌'} Практические: {totalPracticalTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredPractical}</Typography></Typography></Box>
                   </Box>
-                  {(!hasEnoughOral || !hasEnoughPractical) && (
-                    <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                      ⚠️ Добавьте больше заданий в Django админке
-                    </Typography>
-                  )}
+                  {(!hasEnoughOral || !hasEnoughPractical) && <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>⚠️ Добавьте больше заданий в Django админке</Typography>}
                 </Paper>
               )}
               
-              {/* Расширенные параметры */}
-              <Accordion 
-                expanded={advancedMode} 
-                onChange={() => setAdvancedMode(!advancedMode)}
-                sx={{ mt: 3 }}
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                    Расширенные параметры
-                  </Typography>
-                </AccordionSummary>
+              <Accordion expanded={advancedMode} onChange={() => setAdvancedMode(!advancedMode)} sx={{ mt: 3 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}><Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Расширенные параметры</Typography></AccordionSummary>
                 <AccordionDetails>
                   <Box sx={{ mt: 2 }}>
-                    <Typography gutterBottom>
-                      Количество билетов: <strong>{numTickets}</strong>
-                    </Typography>
-                    <Slider
-                      value={numTickets}
-                      onChange={(e, newValue) => setNumTickets(newValue)}
-                      min={1}
-                      max={1000}
-                      step={1}
-                      marks={[
-                        { value: 1, label: '1' },
-                        { value: 30, label: '30' },
-                        { value: 100, label: '100' },
-                        { value: 500, label: '500' },
-                        { value: 1000, label: '1000' }
-                      ]}
-                      valueLabelDisplay="auto"
-                    />
-                    
-                    <Box sx={{ mt: 3 }}>
-                      <Typography gutterBottom>
-                        Устных заданий в билете: <strong>{oralPerTicket}</strong>
-                      </Typography>
-                      <Slider
-                        value={oralPerTicket}
-                        onChange={(e, newValue) => setOralPerTicket(newValue)}
-                        min={1}
-                        max={5}
-                        step={1}
-                        marks
-                        valueLabelDisplay="auto"
-                      />
-                    </Box>
-                    
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={includePractical}
-                          onChange={(e) => setIncludePractical(e.target.checked)}
-                        />
-                      }
-                      label="Включить практические задания"
-                      sx={{ mt: 2, display: 'block' }}
-                    />
-                    
-                    {includePractical && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography gutterBottom>
-                          Практических заданий: <strong>{practicalPerTicket}</strong>
-                        </Typography>
-                        <Slider
-                          value={practicalPerTicket}
-                          onChange={(e, newValue) => setPracticalPerTicket(newValue)}
-                          min={1}
-                          max={4}
-                          step={1}
-                          marks
-                          valueLabelDisplay="auto"
-                        />
-                      </Box>
-                    )}
+                    <Typography gutterBottom>Количество билетов: <strong>{numTickets}</strong></Typography>
+                    <Slider value={numTickets} onChange={(e, newValue) => setNumTickets(newValue)} min={1} max={1000} step={1} marks={[{ value: 1, label: '1' }, { value: 30, label: '30' }, { value: 100, label: '100' }, { value: 500, label: '500' }, { value: 1000, label: '1000' }]} valueLabelDisplay="auto" />
+                    <Box sx={{ mt: 3 }}><Typography gutterBottom>Устных заданий в билете: <strong>{oralPerTicket}</strong></Typography><Slider value={oralPerTicket} onChange={(e, newValue) => setOralPerTicket(newValue)} min={1} max={5} step={1} marks valueLabelDisplay="auto" /></Box>
+                    <FormControlLabel control={<Switch checked={includePractical} onChange={(e) => setIncludePractical(e.target.checked)} />} label="Включить практические задания" sx={{ mt: 2, display: 'block' }} />
+                    {includePractical && <Box sx={{ mt: 2 }}><Typography gutterBottom>Практических заданий: <strong>{practicalPerTicket}</strong></Typography><Slider value={practicalPerTicket} onChange={(e, newValue) => setPracticalPerTicket(newValue)} min={1} max={4} step={1} marks valueLabelDisplay="auto" /></Box>}
                   </Box>
                 </AccordionDetails>
               </Accordion>
               
-              {/* Кнопки управления */}
               <Box sx={{ mt: 4, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  onClick={handleGenerate}
-                  disabled={loading || subjects.length === 0}
-                  startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
-                  sx={{ flexGrow: 1 }}
-                >
-                  {loading ? 'Генерация...' : 'Сгенерировать билеты'}
-                </Button>
-                
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={handleClear}
-                  disabled={loading}
-                >
-                  Очистить
-                </Button>
+                <Button variant="contained" color="primary" size="large" onClick={handleGenerate} disabled={loading || subjects.length === 0} startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />} sx={{ flexGrow: 1 }}>{loading ? 'Генерация...' : 'Сгенерировать билеты'}</Button>
+                <Button variant="outlined" color="secondary" onClick={handleClear} disabled={loading}>Очистить</Button>
               </Box>
               
-              {/* Информация о выбранных параметрах */}
               {selectedSubject && (
                 <Paper variant="outlined" sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    📋 Выбранные параметры:
-                  </Typography>
-                  <Typography variant="body2">
-                    • Предмет: {subjects.find(s => s.id === selectedSubject)?.name}
-                    <br />
-                    • Группы: {selectedGroups.length} шт.
-                    <br />
-                    • Преподаватели: {selectedTeachers.length} шт.
-                    <br />
-                    • Билетов: {numTickets}
-                    <br />
-                    • Заданий в билете: {oralPerTicket} устных {includePractical ? `+ ${practicalPerTicket} практических` : ''}
-                    <br />
-                    • Всего заданий: {numTickets * (oralPerTicket + (includePractical ? practicalPerTicket : 0))}
-                  </Typography>
+                  <Typography variant="subtitle2" gutterBottom>📋 Выбранные параметры:</Typography>
+                  <Typography variant="body2">• Предмет: {subjects.find(s => s.id === selectedSubject)?.name}<br />• Группы: {selectedGroups.length} шт.<br />• Преподаватели: {selectedTeachers.length} шт.<br />• Билетов: {numTickets}<br />• Заданий в билете: {oralPerTicket} устных {includePractical ? `+ ${practicalPerTicket} практических` : ''}<br />• Всего заданий: {numTickets * (oralPerTicket + (includePractical ? practicalPerTicket : 0))}</Typography>
                 </Paper>
               )}
             </Paper>
@@ -1048,251 +653,80 @@ const response = await api.post('/generate/', generationData);
           <Grid item xs={12} md={7}>
             {generatedTickets.length > 0 ? (
               <>
-                {/* Статистика */}
                 <Paper elevation={2} sx={{ p: 2, mb: 3, bgcolor: '#e3f2fd' }}>
                   <Grid container spacing={2}>
-                    <Grid item xs={6} sm={3}>
-                      <Box textAlign="center">
-                        <Typography variant="h4" color="primary">
-                          {generatedTickets.length}
-                        </Typography>
-                        <Typography variant="caption">Билетов</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Box textAlign="center">
-                        <Typography variant="h4" color="secondary">
-                          {oralPerTicket}
-                        </Typography>
-                        <Typography variant="caption">Устных заданий</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Box textAlign="center">
-                        <Typography variant="h4" color="success.main">
-                          {includePractical ? practicalPerTicket : 0}
-                        </Typography>
-                        <Typography variant="caption">Практических</Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Box textAlign="center">
-                        <Typography variant="h4" color="warning.main">
-                          {oralPerTicket + (includePractical ? practicalPerTicket : 0)}
-                        </Typography>
-                        <Typography variant="caption">Всего заданий</Typography>
-                      </Box>
-                    </Grid>
+                    <Grid item xs={6} sm={3}><Box textAlign="center"><Typography variant="h4" color="primary">{generatedTickets.length}</Typography><Typography variant="caption">Билетов</Typography></Box></Grid>
+                    <Grid item xs={6} sm={3}><Box textAlign="center"><Typography variant="h4" color="secondary">{oralPerTicket}</Typography><Typography variant="caption">Устных заданий</Typography></Box></Grid>
+                    <Grid item xs={6} sm={3}><Box textAlign="center"><Typography variant="h4" color="success.main">{includePractical ? practicalPerTicket : 0}</Typography><Typography variant="caption">Практических</Typography></Box></Grid>
+                    <Grid item xs={6} sm={3}><Box textAlign="center"><Typography variant="h4" color="warning.main">{oralPerTicket + (includePractical ? practicalPerTicket : 0)}</Typography><Typography variant="caption">Всего заданий</Typography></Box></Grid>
                   </Grid>
                 </Paper>
                 
-                {/* Кнопки экспорта */}
                 <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<DownloadIcon />}
-                    onClick={handleDownloadPDF}
-                    disabled={loading}
-                  >
-                    Скачать PDF
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<PrintIcon />}
-                    onClick={handlePrint}
-                  >
-                    Печать
-                  </Button>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>
-                    📁 Данные из Django: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей
-                  </Typography>
+                  <Button variant="contained" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadPDF} disabled={loading}>Скачать PDF</Button>
+                  <Button variant="outlined" color="primary" startIcon={<PrintIcon />} onClick={handlePrint}>Печать</Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>📁 Данные из Django: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей</Typography>
                 </Box>
                 
-                {/* Предпросмотр билета */}
                 {previewTicket && (
                   <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        📄 Предпросмотр билета №{previewTicket.ticket_number}
-                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>📄 Предпросмотр билета №{previewTicket.ticket_number}</Typography>
                       <Box>
-                        <Tooltip title="Предыдущий билет">
-                          <IconButton 
-                            size="small" 
-                            onClick={handlePrevTicket}
-                            disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === 0}
-                          >
-                            <ArrowBackIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Следующий билет">
-                          <IconButton 
-                            size="small"
-                            onClick={handleNextTicket}
-                            disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === generatedTickets.length - 1}
-                          >
-                            <ArrowForwardIcon />
-                          </IconButton>
-                        </Tooltip>
+                        <Tooltip title="Предыдущий билет"><IconButton size="small" onClick={handlePrevTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === 0}><ArrowBackIcon /></IconButton></Tooltip>
+                        <Tooltip title="Следующий билет"><IconButton size="small" onClick={handleNextTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === generatedTickets.length - 1}><ArrowForwardIcon /></IconButton></Tooltip>
                       </Box>
                     </Box>
                     
                     <Card variant="outlined">
                       <CardContent>
-                        <Typography variant="h6" gutterBottom color="primary">
-                          {previewTicket.subject?.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | 
-                          Семестр: {previewTicket.semester} | 
-                          Председатель: {previewTicket.chairman?.full_name}
-                        </Typography>
-                        
-                        {previewTicket.teacher && (
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Преподаватель: {previewTicket.teacher.full_name} ({previewTicket.teacher.position})
-                          </Typography>
-                        )}
-                        
+                        <Typography variant="h6" gutterBottom color="primary">{previewTicket.subject?.name}</Typography>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | Семестр: {previewTicket.semester} | Председатель: {previewTicket.chairman?.full_name}</Typography>
+                        {previewTicket.teacher && <Typography variant="body2" color="text.secondary" gutterBottom>Преподаватель: {previewTicket.teacher.full_name} ({previewTicket.teacher.position})</Typography>}
                         <Divider sx={{ my: 2 }} />
-                        
-                        <List>
-                          {previewTicket.tasks?.map((task, index) => (
-                            <ListItem key={task.id || index} sx={{ alignItems: 'flex-start' }}>
-                              <Box sx={{ 
-                                bgcolor: task.task_type === 'oral' ? '#e8f5e9' : '#e3f2fd', 
-                                p: 1, 
-                                borderRadius: 1,
-                                mr: 2,
-                                minWidth: 100,
-                                textAlign: 'center'
-                              }}>
-                                <Typography variant="caption" sx={{ 
-                                  fontWeight: 'bold',
-                                  color: task.task_type === 'oral' ? '#2e7d32' : '#1565c0'
-                                }}>
-                                  {task.task_type === 'oral' ? 'УСТНОЕ' : 'ПРАКТИЧЕСКОЕ'}
-                                </Typography>
-                              </Box>
-                              <ListItemText
-                                primary={
-                                  <Typography variant="body1">
-                                    <strong>{task.order || index + 1}. {task.title}</strong>
-                                  </Typography>
-                                }
-                                secondary={
-                                  <Typography variant="body2" color="text.secondary">
-                                    {task.description}
-                                  </Typography>
-                                }
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
+                        <List>{previewTicket.tasks?.map((task, index) => (
+                          <ListItem key={task.id || index} sx={{ alignItems: 'flex-start' }}>
+                            <Box sx={{ bgcolor: task.task_type === 'oral' ? '#e8f5e9' : '#e3f2fd', p: 1, borderRadius: 1, mr: 2, minWidth: 100, textAlign: 'center' }}>
+                              <Typography variant="caption" sx={{ fontWeight: 'bold', color: task.task_type === 'oral' ? '#2e7d32' : '#1565c0' }}>{task.task_type === 'oral' ? 'УСТНОЕ' : 'ПРАКТИЧЕСКОЕ'}</Typography>
+                            </Box>
+                            <ListItemText primary={<Typography variant="body1"><strong>{task.order || index + 1}. {task.title}</strong></Typography>} secondary={<Typography variant="body2" color="text.secondary">{task.description}</Typography>} />
+                          </ListItem>
+                        ))}</List>
                       </CardContent>
                     </Card>
                   </Paper>
                 )}
                 
-                {/* Список всех билетов */}
                 <Paper elevation={3} sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                    📋 Список всех билетов (показано {Math.min(generatedTickets.length, 12)} из {generatedTickets.length})
-                  </Typography>
-                  
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>📋 Список всех билетов (показано {Math.min(generatedTickets.length, 12)} из {generatedTickets.length})</Typography>
                   <Grid container spacing={2}>
                     {generatedTickets.slice(0, 12).map((ticket) => (
                       <Grid item xs={6} sm={4} md={3} key={ticket.id}>
-                        <Card 
-                          variant="outlined" 
-                          sx={{ 
-                            cursor: 'pointer',
-                            borderColor: previewTicket?.id === ticket.id ? 'primary.main' : '',
-                            bgcolor: previewTicket?.id === ticket.id ? '#f0f7ff' : '',
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                              borderColor: 'primary.main',
-                              bgcolor: '#f5f5f5'
-                            }
-                          }}
-                          onClick={() => setPreviewTicket(ticket)}
-                        >
+                        <Card variant="outlined" sx={{ cursor: 'pointer', borderColor: previewTicket?.id === ticket.id ? 'primary.main' : '', bgcolor: previewTicket?.id === ticket.id ? '#f0f7ff' : '', transition: 'all 0.2s', '&:hover': { borderColor: 'primary.main', bgcolor: '#f5f5f5' } }} onClick={() => setPreviewTicket(ticket)}>
                           <CardContent sx={{ p: 2 }}>
-                            <Typography variant="subtitle2" align="center" gutterBottom>
-                              Билет №{ticket.ticket_number}
-                            </Typography>
+                            <Typography variant="subtitle2" align="center" gutterBottom>Билет №{ticket.ticket_number}</Typography>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
-                              <Chip 
-                                label={`${ticket.tasks?.filter(t => t.task_type === 'oral').length || 0} уст.`} 
-                                size="small" 
-                                color="success"
-                                variant="outlined"
-                              />
-                              {includePractical && (
-                                <Chip 
-                                  label={`${ticket.tasks?.filter(t => t.task_type === 'practical').length || 0} пр.`} 
-                                  size="small" 
-                                  color="primary"
-                                  variant="outlined"
-                                />
-                              )}
+                              <Chip label={`${ticket.tasks?.filter(t => t.task_type === 'oral').length || 0} уст.`} size="small" color="success" variant="outlined" />
+                              {includePractical && <Chip label={`${ticket.tasks?.filter(t => t.task_type === 'practical').length || 0} пр.`} size="small" color="primary" variant="outlined" />}
                             </Box>
                           </CardContent>
                         </Card>
                       </Grid>
                     ))}
                   </Grid>
-                  
-                  {generatedTickets.length > 12 && (
-                    <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-                      ... и еще {generatedTickets.length - 12} билетов
-                    </Typography>
-                  )}
+                  {generatedTickets.length > 12 && <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>... и еще {generatedTickets.length - 12} билетов</Typography>}
                 </Paper>
               </>
             ) : (
-              /* Пустое состояние */
-              <Paper 
-                elevation={3} 
-                sx={{ 
-                  p: 6, 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  textAlign: 'center'
-                }}
-              >
-                <Box sx={{ fontSize: 60, color: '#1976d2', mb: 2 }}>
-                  🎓
-                </Box>
-                <Typography variant="h5" color="text.secondary" gutterBottom>
-                  Здесь появятся экзаменационные билеты
-                </Typography>
-                <Typography variant="body1" color="text.secondary" paragraph>
-                  Заполните параметры слева и нажмите "Сгенерировать билеты"
-                </Typography>
-                
+              <Paper elevation={3} sx={{ p: 6, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                <Box sx={{ fontSize: 60, color: '#1976d2', mb: 2 }}>🎓</Box>
+                <Typography variant="h5" color="text.secondary" gutterBottom>Здесь появятся экзаменационные билеты</Typography>
+                <Typography variant="body1" color="text.secondary" paragraph>Заполните параметры слева и нажмите "Сгенерировать билеты"</Typography>
                 <Box sx={{ mt: 3, p: 2, bgcolor: '#f0f7ff', borderRadius: 2, maxWidth: 400 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    💡 Подсказка:
-                  </Typography>
-                  <Typography variant="body2">
-                    1. Добавьте данные в Django админке<br />
-                    2. Выберите предмет, группы и преподавателей<br />
-                    3. Настройте количество билетов<br />
-                    4. Нажмите "Сгенерировать билеты"
-                  </Typography>
+                  <Typography variant="subtitle2" gutterBottom>💡 Подсказка:</Typography>
+                  <Typography variant="body2">1. Добавьте данные в Django админке<br />2. Выберите предмет, группы и преподавателей<br />3. Настройте количество билетов<br />4. Нажмите "Сгенерировать билеты"</Typography>
                 </Box>
-                
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Готово к работе: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей
-                  </Typography>
-                </Box>
+                <Box sx={{ mt: 2 }}><Typography variant="caption" color="text.secondary">Готово к работе: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей</Typography></Box>
               </Paper>
             )}
           </Grid>
