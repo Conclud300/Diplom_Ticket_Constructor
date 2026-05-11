@@ -30,7 +30,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ticket_db',  # имя вашей БД
         'USER': 'postgres',   # ваш пользователь
-        'PASSWORD': os.getenv('DB_PASSWORD', 'ваш_пароль'),  # ваш пароль
+        'PASSWORD': os.getenv('DB_PASSWORD', 'eFWAEfsr2q3q4wA'),  # ваш пароль
         'HOST': 'localhost',
         'PORT': '5432',
     }
