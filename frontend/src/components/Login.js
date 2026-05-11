@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
 import {
   Container,
   Paper,
@@ -9,13 +9,11 @@ import {
   Typography,
   Box,
   Alert,
-  Grid,
-  Link
+  Grid
 } from '@mui/material';
 import {
   School as SchoolIcon,
-  Login as LoginIcon,
-  AdminPanelSettings as AdminPanelSettingsIcon
+  Login as LoginIcon
 } from '@mui/icons-material';
 
 const Login = ({ setAuth, setUser, setTeacher }) => {
@@ -30,8 +28,7 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
     setLoading(true);
 
     try {
-      // ВАЖНО: используем POST, а не GET!
-      const response = await api.post('/login/', loginData);
+      const response = await axios.post('https://ticket-backend-3zm6.onrender.com/api/tickets/login/', loginData);
       
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -48,45 +45,14 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
       navigate('/generator');
       
     } catch (err) {
-      setError(err.response?.data?.error || 'Ошибка входа. Проверьте логин и пароль.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setLoginData({ username: 'demo', password: 'demo123' });
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await api.post('/login/', {
-        username: 'demo',
-        password: 'demo123'
-      });
-      
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (response.data.teacher) {
-        localStorage.setItem('teacher', JSON.stringify(response.data.teacher));
-      }
-      
-      setAuth(true);
-      setUser(response.data.user);
-      if (response.data.teacher) {
-        setTeacher(response.data.teacher);
-      }
-      navigate('/generator');
-      
-    } catch (err) {
-      setError('Демо-пользователь не настроен. Используйте учетные данные созданные в Django админке.');
+      setError(err.response?.data?.error || 'Неверный логин или пароль');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="md" sx={{ mt: 8, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <SchoolIcon sx={{ fontSize: 60, color: 'primary.main', mr: 2 }} />
         <Box>
@@ -149,47 +115,6 @@ const Login = ({ setAuth, setUser, setTeacher }) => {
             </Grid>
           </Grid>
         </form>
-
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Для тестирования вы можете:
-          </Typography>
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            sx={{ mr: 2, mb: 2 }}
-          >
-            Войти как демо-пользователь
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => window.open('http://localhost:8000/admin', '_blank')}
-            startIcon={<AdminPanelSettingsIcon />}
-            sx={{ mb: 2 }}
-          >
-            Открыть Django админку
-          </Button>
-        </Box>
-
-        <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            💡 Информация для администраторов:
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Как создать пользователя:</strong><br/>
-            1. Откройте Django админку: <Link href="http://localhost:8000/admin" target="_blank" rel="noreferrer">http://localhost:8000/admin</Link><br/>
-            2. Войдите под суперпользователем<br/>
-            3. В разделе "Users" создайте нового пользователя<br/>
-            4. В разделе "Teachers" создайте преподавателя и свяжите с пользователем<br/>
-            5. Используйте созданные логин/пароль для входа<br/>
-            <br/>
-            <strong>Команда для суперпользователя:</strong><br/>
-            <code>python manage.py createsuperuser</code>
-          </Typography>
-        </Box>
       </Paper>
     </Container>
   );

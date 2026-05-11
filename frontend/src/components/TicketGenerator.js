@@ -81,7 +81,7 @@ const TicketGenerator = ({ teacher, user }) => {
     setApiError('');
     
     try {
-      console.log('Загрузка данных из Django API...');
+      console.log('Загрузка данных из API...');
       
       const [subjectsRes, groupsRes, chairmenRes, teachersRes, deputiesRes] = await Promise.all([
         api.get('/subjects/'),
@@ -100,7 +100,7 @@ const TicketGenerator = ({ teacher, user }) => {
       const now = new Date().toLocaleTimeString();
       setLastUpdated(now);
       
-      console.log('✅ Данные загружены из Django:', now);
+      console.log('✅ Данные загружены:', now);
       console.log('- Предметы:', subjectsRes.data.length);
       console.log('- Группы:', groupsRes.data.length);
       console.log('- Председатели:', chairmenRes.data.length);
@@ -123,7 +123,7 @@ const TicketGenerator = ({ teacher, user }) => {
       
     } catch (error) {
       console.error('❌ Ошибка загрузки данных:', error);
-      setApiError('Не удалось загрузить данные из Django. Проверьте: 1) Запущен ли Django сервер? 2) Есть ли данные в админке?');
+      setApiError('Ошибка подключения к серверу. Попробуйте позже.');
       
       // Тестовые данные для демонстрации
       setSubjects([
@@ -160,7 +160,6 @@ const TicketGenerator = ({ teacher, user }) => {
       try {
         const course = groups.find(g => selectedGroups.includes(g.id))?.course || 1;
         
-        // ✅ ИСПРАВЛЕНО: используем api.get вместо axios.get
         const response = await api.get(`/statistics/?subject_id=${selectedSubject}&course=${course}`);
         
         console.log('Статистика заданий:', response.data);
@@ -313,11 +312,11 @@ const TicketGenerator = ({ teacher, user }) => {
       link.click();
       link.remove();
       
-      setSuccess('HTML файл с билетами скачан! Откройте его в браузере и сохраните как PDF через меню печати.');
+      setSuccess('Файл с билетами скачан!');
       
     } catch (error) {
-      console.error('Ошибка генерации PDF:', error);
-      setError('Ошибка при генерации файла. Используйте кнопку "Печать" для создания билетов.');
+      console.error('Ошибка генерации файла:', error);
+      setError('Ошибка при генерации файла.');
       handlePrint();
     } finally {
       setLoading(false);
@@ -404,7 +403,7 @@ const TicketGenerator = ({ teacher, user }) => {
                       Зам.директора ИСПО<br>
                       по УМР<br>
                       ________________<br>
-                      Конакина Е.Г.<br>
+                      ${ticket.deputy_director?.full_name || 'Конакина Е.Г.'}<br>
                       «__» __________ 2025 г.
                     </div>
                   </td>
@@ -445,7 +444,7 @@ const TicketGenerator = ({ teacher, user }) => {
       
     } catch (error) {
       console.error('Ошибка при подготовке печати:', error);
-      setError('Ошибка при подготовке печати. Попробуйте скачать HTML файл.');
+      setError('Ошибка при подготовке печати.');
     }
   };
 
@@ -484,7 +483,7 @@ const TicketGenerator = ({ teacher, user }) => {
     <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-          🎫 Конструктор экзаменационных билетов
+          Конструктор экзаменационных билетов
         </Typography>
         <Button variant="outlined" startIcon={<RefreshIcon />} onClick={handleRefresh} disabled={loadingData} size="small">
           Обновить данные
@@ -500,8 +499,6 @@ const TicketGenerator = ({ teacher, user }) => {
       {apiError && (
         <Alert severity="warning" sx={{ mb: 2 }} icon={<WarningIcon />}>
           {apiError}
-          <br />
-          <small>Работаем с тестовыми данными. Проверьте Django сервер: <a href="http://localhost:8000/api/tickets/test/" target="_blank" rel="noreferrer">http://localhost:8000/api/tickets/test/</a></small>
         </Alert>
       )}
       
@@ -511,7 +508,7 @@ const TicketGenerator = ({ teacher, user }) => {
       {loadingData ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
-          <Typography sx={{ ml: 2 }}>Загрузка данных из Django...</Typography>
+          <Typography sx={{ ml: 2 }}>Загрузка данных...</Typography>
         </Box>
       ) : (
         <Grid container spacing={3}>
@@ -526,7 +523,7 @@ const TicketGenerator = ({ teacher, user }) => {
               <Divider sx={{ mb: 3 }} />
               
               <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f7ff', borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>📊 Данные из Django админки:</Typography>
+                <Typography variant="subtitle2" gutterBottom>Доступные данные:</Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Chip label={`${subjects.length} предметов`} size="small" color="primary" variant="outlined" />
                   <Chip label={`${groups.length} групп`} size="small" color="secondary" variant="outlined" />
@@ -542,7 +539,7 @@ const TicketGenerator = ({ teacher, user }) => {
                 <Select value={selectedSubject} label="Предмет *" onChange={(e) => setSelectedSubject(e.target.value)} disabled={subjects.length === 0}>
                   {subjects.length === 0 ? <MenuItem value="">Нет данных</MenuItem> : subjects.map((subject) => (
                     <MenuItem key={subject.id} value={subject.id}>
-                      <Box><Typography variant="body1">{subject.name}</Typography><Typography variant="caption" color="text.secondary">Код: {subject.code} | Курс: {subject.course} | Часы: {subject.hours}</Typography></Box>
+                      <Box><Typography variant="body1">{subject.name}</Typography><Typography variant="caption" color="text.secondary">Код: {subject.code} | Курс: {subject.course}</Typography></Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -554,7 +551,7 @@ const TicketGenerator = ({ teacher, user }) => {
                   <MenuItem value="">Не выбрано</MenuItem>
                   {deputyDirectors.map((deputy) => (
                     <MenuItem key={deputy.id} value={deputy.id}>
-                      <Box><Typography variant="body1">{deputy.full_name}</Typography><Typography variant="caption" color="text.secondary">{deputy.position} ({deputy.short_name})</Typography></Box>
+                      <Box><Typography variant="body1">{deputy.full_name}</Typography><Typography variant="caption" color="text.secondary">{deputy.position}</Typography></Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -584,7 +581,7 @@ const TicketGenerator = ({ teacher, user }) => {
                 <Select value={selectedChairman} label="Председатель ПЦК *" onChange={(e) => setSelectedChairman(e.target.value)} disabled={chairmen.length === 0}>
                   {chairmen.map((chairman) => (
                     <MenuItem key={chairman.id} value={chairman.id}>
-                      <Box><Typography variant="body1">{chairman.full_name}</Typography><Typography variant="caption" color="text.secondary">{chairman.position}, {chairman.department}</Typography></Box>
+                      <Box><Typography variant="body1">{chairman.full_name}</Typography><Typography variant="caption" color="text.secondary">{chairman.position}</Typography></Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -602,7 +599,7 @@ const TicketGenerator = ({ teacher, user }) => {
                 )}>
                   {teachers.map((teacherItem) => (
                     <MenuItem key={teacherItem.id} value={teacherItem.id}>
-                      <Box><Typography variant="body1">{teacherItem.full_name}</Typography><Typography variant="caption" color="text.secondary">{teacherItem.department} | {teacherItem.position}</Typography></Box>
+                      <Box><Typography variant="body1">{teacherItem.full_name}</Typography><Typography variant="caption" color="text.secondary">{teacherItem.department}</Typography></Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -613,12 +610,11 @@ const TicketGenerator = ({ teacher, user }) => {
               
               {selectedSubject && (
                 <Paper variant="outlined" sx={{ mt: 2, p: 2, bgcolor: '#f9f9f9' }}>
-                  <Typography variant="subtitle2" gutterBottom>📝 Доступные задания для выбранного предмета:</Typography>
+                  <Typography variant="subtitle2" gutterBottom>Доступные задания:</Typography>
                   <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
-                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughOral ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughOral ? '✅' : '❌'} Устные: {totalOralTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredOral}</Typography></Typography></Box>
-                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughPractical ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughPractical ? '✅' : '❌'} Практические: {totalPracticalTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredPractical}</Typography></Typography></Box>
+                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughOral ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughOral ? '✓' : '✗'} Устные: {totalOralTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredOral}</Typography></Typography></Box>
+                    <Box><Typography variant="body2"><Box component="span" sx={{ color: hasEnoughPractical ? '#2e7d32' : '#d32f2f', fontWeight: 'bold' }}>{hasEnoughPractical ? '✓' : '✗'} Практические: {totalPracticalTasks}</Box><br /><Typography variant="caption" color="text.secondary">Нужно: {requiredPractical}</Typography></Typography></Box>
                   </Box>
-                  {(!hasEnoughOral || !hasEnoughPractical) && <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>⚠️ Добавьте больше заданий в Django админке</Typography>}
                 </Paper>
               )}
               
@@ -627,7 +623,7 @@ const TicketGenerator = ({ teacher, user }) => {
                 <AccordionDetails>
                   <Box sx={{ mt: 2 }}>
                     <Typography gutterBottom>Количество билетов: <strong>{numTickets}</strong></Typography>
-                    <Slider value={numTickets} onChange={(e, newValue) => setNumTickets(newValue)} min={1} max={1000} step={1} marks={[{ value: 1, label: '1' }, { value: 30, label: '30' }, { value: 100, label: '100' }, { value: 500, label: '500' }, { value: 1000, label: '1000' }]} valueLabelDisplay="auto" />
+                    <Slider value={numTickets} onChange={(e, newValue) => setNumTickets(newValue)} min={1} max={1000} step={1} marks={[{ value: 1, label: '1' }, { value: 30, label: '30' }, { value: 100, label: '100' }]} valueLabelDisplay="auto" />
                     <Box sx={{ mt: 3 }}><Typography gutterBottom>Устных заданий в билете: <strong>{oralPerTicket}</strong></Typography><Slider value={oralPerTicket} onChange={(e, newValue) => setOralPerTicket(newValue)} min={1} max={5} step={1} marks valueLabelDisplay="auto" /></Box>
                     <FormControlLabel control={<Switch checked={includePractical} onChange={(e) => setIncludePractical(e.target.checked)} />} label="Включить практические задания" sx={{ mt: 2, display: 'block' }} />
                     {includePractical && <Box sx={{ mt: 2 }}><Typography gutterBottom>Практических заданий: <strong>{practicalPerTicket}</strong></Typography><Slider value={practicalPerTicket} onChange={(e, newValue) => setPracticalPerTicket(newValue)} min={1} max={4} step={1} marks valueLabelDisplay="auto" /></Box>}
@@ -642,8 +638,8 @@ const TicketGenerator = ({ teacher, user }) => {
               
               {selectedSubject && (
                 <Paper variant="outlined" sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5' }}>
-                  <Typography variant="subtitle2" gutterBottom>📋 Выбранные параметры:</Typography>
-                  <Typography variant="body2">• Предмет: {subjects.find(s => s.id === selectedSubject)?.name}<br />• Группы: {selectedGroups.length} шт.<br />• Преподаватели: {selectedTeachers.length} шт.<br />• Билетов: {numTickets}<br />• Заданий в билете: {oralPerTicket} устных {includePractical ? `+ ${practicalPerTicket} практических` : ''}<br />• Всего заданий: {numTickets * (oralPerTicket + (includePractical ? practicalPerTicket : 0))}</Typography>
+                  <Typography variant="subtitle2" gutterBottom>Выбранные параметры:</Typography>
+                  <Typography variant="body2">• Предмет: {subjects.find(s => s.id === selectedSubject)?.name}<br />• Группы: {selectedGroups.length} шт.<br />• Преподаватели: {selectedTeachers.length} шт.<br />• Билетов: {numTickets}<br />• Заданий в билете: {oralPerTicket} устных {includePractical ? `+ ${practicalPerTicket} практических` : ''}</Typography>
                 </Paper>
               )}
             </Paper>
@@ -663,26 +659,25 @@ const TicketGenerator = ({ teacher, user }) => {
                 </Paper>
                 
                 <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  <Button variant="contained" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadPDF} disabled={loading}>Скачать PDF</Button>
+                  <Button variant="contained" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadPDF} disabled={loading}>Скачать билеты</Button>
                   <Button variant="outlined" color="primary" startIcon={<PrintIcon />} onClick={handlePrint}>Печать</Button>
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>📁 Данные из Django: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей</Typography>
                 </Box>
                 
                 {previewTicket && (
                   <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>📄 Предпросмотр билета №{previewTicket.ticket_number}</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Предпросмотр билета №{previewTicket.ticket_number}</Typography>
                       <Box>
-                        <Tooltip title="Предыдущий билет"><IconButton size="small" onClick={handlePrevTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === 0}><ArrowBackIcon /></IconButton></Tooltip>
-                        <Tooltip title="Следующий билет"><IconButton size="small" onClick={handleNextTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === generatedTickets.length - 1}><ArrowForwardIcon /></IconButton></Tooltip>
+                        <Tooltip title="Предыдущий"><IconButton size="small" onClick={handlePrevTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === 0}><ArrowBackIcon /></IconButton></Tooltip>
+                        <Tooltip title="Следующий"><IconButton size="small" onClick={handleNextTicket} disabled={generatedTickets.findIndex(t => t.id === previewTicket.id) === generatedTickets.length - 1}><ArrowForwardIcon /></IconButton></Tooltip>
                       </Box>
                     </Box>
                     
                     <Card variant="outlined">
                       <CardContent>
                         <Typography variant="h6" gutterBottom color="primary">{previewTicket.subject?.name}</Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | Семестр: {previewTicket.semester} | Председатель: {previewTicket.chairman?.full_name}</Typography>
-                        {previewTicket.teacher && <Typography variant="body2" color="text.secondary" gutterBottom>Преподаватель: {previewTicket.teacher.full_name} ({previewTicket.teacher.position})</Typography>}
+                        <Typography variant="body2" color="text.secondary" gutterBottom>Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | Семестр: {previewTicket.semester}</Typography>
+                        {previewTicket.teacher && <Typography variant="body2" color="text.secondary" gutterBottom>Преподаватель: {previewTicket.teacher.full_name}</Typography>}
                         <Divider sx={{ my: 2 }} />
                         <List>{previewTicket.tasks?.map((task, index) => (
                           <ListItem key={task.id || index} sx={{ alignItems: 'flex-start' }}>
@@ -698,14 +693,14 @@ const TicketGenerator = ({ teacher, user }) => {
                 )}
                 
                 <Paper elevation={3} sx={{ p: 3 }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>📋 Список всех билетов (показано {Math.min(generatedTickets.length, 12)} из {generatedTickets.length})</Typography>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Список билетов (показано {Math.min(generatedTickets.length, 12)} из {generatedTickets.length})</Typography>
                   <Grid container spacing={2}>
                     {generatedTickets.slice(0, 12).map((ticket) => (
                       <Grid item xs={6} sm={4} md={3} key={ticket.id}>
-                        <Card variant="outlined" sx={{ cursor: 'pointer', borderColor: previewTicket?.id === ticket.id ? 'primary.main' : '', bgcolor: previewTicket?.id === ticket.id ? '#f0f7ff' : '', transition: 'all 0.2s', '&:hover': { borderColor: 'primary.main', bgcolor: '#f5f5f5' } }} onClick={() => setPreviewTicket(ticket)}>
+                        <Card variant="outlined" sx={{ cursor: 'pointer', borderColor: previewTicket?.id === ticket.id ? 'primary.main' : '', bgcolor: previewTicket?.id === ticket.id ? '#f0f7ff' : '', '&:hover': { borderColor: 'primary.main', bgcolor: '#f5f5f5' } }} onClick={() => setPreviewTicket(ticket)}>
                           <CardContent sx={{ p: 2 }}>
                             <Typography variant="subtitle2" align="center" gutterBottom>Билет №{ticket.ticket_number}</Typography>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                               <Chip label={`${ticket.tasks?.filter(t => t.task_type === 'oral').length || 0} уст.`} size="small" color="success" variant="outlined" />
                               {includePractical && <Chip label={`${ticket.tasks?.filter(t => t.task_type === 'practical').length || 0} пр.`} size="small" color="primary" variant="outlined" />}
                             </Box>
@@ -714,19 +709,13 @@ const TicketGenerator = ({ teacher, user }) => {
                       </Grid>
                     ))}
                   </Grid>
-                  {generatedTickets.length > 12 && <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>... и еще {generatedTickets.length - 12} билетов</Typography>}
                 </Paper>
               </>
             ) : (
-              <Paper elevation={3} sx={{ p: 6, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-                <Box sx={{ fontSize: 60, color: '#1976d2', mb: 2 }}>🎓</Box>
-                <Typography variant="h5" color="text.secondary" gutterBottom>Здесь появятся экзаменационные билеты</Typography>
-                <Typography variant="body1" color="text.secondary" paragraph>Заполните параметры слева и нажмите "Сгенерировать билеты"</Typography>
-                <Box sx={{ mt: 3, p: 2, bgcolor: '#f0f7ff', borderRadius: 2, maxWidth: 400 }}>
-                  <Typography variant="subtitle2" gutterBottom>💡 Подсказка:</Typography>
-                  <Typography variant="body2">1. Добавьте данные в Django админке<br />2. Выберите предмет, группы и преподавателей<br />3. Настройте количество билетов<br />4. Нажмите "Сгенерировать билеты"</Typography>
-                </Box>
-                <Box sx={{ mt: 2 }}><Typography variant="caption" color="text.secondary">Готово к работе: {subjects.length} предметов, {groups.length} групп, {teachers.length} преподавателей</Typography></Box>
+              <Paper elevation={3} sx={{ p: 6, textAlign: 'center' }}>
+                <Box sx={{ fontSize: 60, color: '#1976d2', mb: 2 }}>📋</Box>
+                <Typography variant="h5" color="text.secondary" gutterBottom>Здесь появятся билеты</Typography>
+                <Typography variant="body1" color="text.secondary">Заполните параметры слева и нажмите "Сгенерировать билеты"</Typography>
               </Paper>
             )}
           </Grid>
