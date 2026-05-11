@@ -73,18 +73,11 @@ if DATABASE_URL:
             ssl_require=True
         )
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+
 
 # ============ CORS ============
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
     "https://diplom-ticket-constructor.vercel.app",   
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
