@@ -1,0 +1,10 @@
+[build]
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/build"
+
+[build.environment]
+  NODE_VERSION = "18.20.0"
+  NPM_VERSION = "10.8.0"
+
+[env]
+  CI = "false"
