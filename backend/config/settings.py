@@ -81,8 +81,10 @@ if database_url:
 # ============ CORS ============
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://diplom-ticket-constructor.vercel.app",   
+    "https://diplom-ticket-constructor.vercel.app",
+    "https://ticket-backend-3zm6.onrender.com",
 ]
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # ============ STATIC FILES ============

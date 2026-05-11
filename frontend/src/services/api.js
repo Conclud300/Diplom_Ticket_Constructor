@@ -1,20 +1,17 @@
 import axios from 'axios';
 
-// Определяем базовый URL в зависимости от окружения
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? process.env.REACT_APP_API_URL || 'https://ticket-backend-3zm6.onrender.com/api/tickets/'
-  : 'http://localhost:8000/api/tickets/';
+// ВАЖНО: замените URL на ваш реальный бэкенд!
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://ticket-backend-3zm6.onrender.com'  // ← ВАШ РЕАЛЬНЫЙ URL
+  : 'http://localhost:8000';
 
-// Создаем экземпляр axios с базовыми настройками
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_BASE_URL}/api/tickets/`,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 секунд таймаут для генерации билетов
 });
 
-// Перехватчик запросов - добавляет токен авторизации к каждому запросу
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,26 +20,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Перехватчик ответов - обработка ошибок авторизации
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      // Если токен истек или недействителен
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('teacher');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default api;
