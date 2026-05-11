@@ -9,5 +9,5 @@ pip install -r requirements.txt
 # Собираем статику и применяем миграции
 python manage.py collectstatic --noinput
 python manage.py migrate
-
+python manage.py create_admin || echo "Admin already exists"
 echo "✅ Build completed!"
