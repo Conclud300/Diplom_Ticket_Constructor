@@ -1,12 +1,15 @@
 import axios from 'axios';
 
-// Используем переменную окружения или прямой URL
-const API_URL = process.env.REACT_APP_API_URL || 'https://ticket-backend-3zm6.onrender.com/api/tickets/';
+// ОПРЕДЕЛЯЕМ URL В ЗАВИСИМОСТИ ОТ ТОГО, ГДЕ ЗАПУЩЕНО ПРИЛОЖЕНИЕ
+const isProduction = window.location.hostname !== 'localhost';
+const API_BASE_URL = isProduction 
+  ? 'https://ticket-backend-3zm6.onrender.com/api/tickets/'
+  : 'http://localhost:8000/api/tickets/';
 
-console.log('API URL:', API_URL);  // Для проверки
+console.log('API URL:', API_BASE_URL);  // Убедимся, что URL правильный
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,7 +22,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
-    console.log('Request:', config.method, config.url);  // Для проверки
+    console.log('Request:', config.method.toUpperCase(), config.url);
     return config;
   },
   (error) => Promise.reject(error)
