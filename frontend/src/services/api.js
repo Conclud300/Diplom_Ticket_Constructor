@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Определяем базовый URL в зависимости от окружения
 const API_URL = process.env.NODE_ENV === 'production' 
-  ? process.env.REACT_APP_API_URL || 'https://ваш-бэкенд.onrender.com/api/tickets/'
+  ? process.env.REACT_APP_API_URL || 'https://ticket-backend-3zm6.onrender.com/api/tickets/'
   : 'http://localhost:8000/api/tickets/';
 
 // Создаем экземпляр axios с базовыми настройками

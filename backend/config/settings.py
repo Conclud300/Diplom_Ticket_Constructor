@@ -82,7 +82,11 @@ else:
     }
 
 # ============ CORS ============
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://ticket-generator-ispo.netlify.app",   
+]
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # ============ STATIC FILES ============
