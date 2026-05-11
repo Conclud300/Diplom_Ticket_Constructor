@@ -64,7 +64,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ============ БАЗА ДАННЫХ ============
-DATABASE_URL = os.getenv('postgresql://ticket_user:BJIRuz9ajY77Kncl6EHziwHXQPvwXExg@dpg-d80v0s1o3t8c73e5hlqg-a/ticket_db_wr22')
+DATABASE_URL = os.getenv('postgresql://ticket_user:BJIRuz9ajY77Kncl6EHziwHXQPvwXExg@dpg-d80v0s1o3t8c73e5hlqg-a.frankfurt-postgres.render.com/ticket_db_wr22')
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
