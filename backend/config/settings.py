@@ -25,7 +25,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'whitenoise.runserver_nostatic',  # Для статики в проде
+    'whitenoise.runserver_nostatic',
     
     'tickets',
     'users',
@@ -34,7 +34,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Для статики
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -64,8 +64,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ============ БАЗА ДАННЫХ ============
-# Поддержка PostgreSQL через DATABASE_URL (для Render)
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('postgresql://ticket_user:BJIRuz9ajY77Kncl6EHziwHXQPvwXExg@dpg-d80v0s1o3t8c73e5hlqg-a/ticket_db_wr22')
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
@@ -75,7 +74,6 @@ if DATABASE_URL:
         )
     }
 else:
-    # Для локальной разработки
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -106,7 +104,6 @@ REST_FRAMEWORK = {
     ]
 }
 
-# ============ AUTH ============
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
