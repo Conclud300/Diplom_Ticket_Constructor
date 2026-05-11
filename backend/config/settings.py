@@ -64,13 +64,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ============ БАЗА ДАННЫХ ============
-DATABASE_URL = os.getenv('postgresql://ticket_user:BJIRuz9ajY77Kncl6EHziwHXQPvwXExg@dpg-d80v0s1o3t8c73e5hlqg-a.frankfurt-postgres.render.com/ticket_db_wr22')
-if DATABASE_URL:
+database_url = os.getenv('DATABASE_URL')
+
+if database_url:
+    # Для Render: парсим URL и добавляем обязательные настройки SSL
     DATABASES = {
         'default': dj_database_url.config(
-            default=DATABASE_URL,
+            default=database_url,
             conn_max_age=600,
-            ssl_require=True
+            ssl_require=True,  # Обязательно для Render PostgreSQL
+            engine='django.db.backends.postgresql'
         )
     }
 
