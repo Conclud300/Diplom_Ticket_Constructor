@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.log
+*.pot
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+build/
+dist/
+.cache/
+
+# Uploads
+media/
+staticfiles/
+
+# Secrets
+*.key
+*.pem
+*.crt

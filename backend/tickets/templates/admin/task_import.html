@@ -1,0 +1,446 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Стили в духе Django admin */
+    .import-module {
+        background: var(--body-bg);
+        padding: 20px;
+        margin: 20px 0;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+    
+    .import-header {
+        background: var(--darkened-bg);
+        padding: 12px 20px;
+        margin: -20px -20px 20px -20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .import-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--body-quiet-color);
+        line-height: 1.4;
+    }
+    
+    .import-header .back-link {
+        color: var(--body-quiet-color);
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 12px;
+        background: var(--button-bg);
+        color: var(--button-fg);
+        border-radius: 3px;
+        line-height: 1.4;
+    }
+    
+    .import-header .back-link:hover {
+        background: var(--button-hover-bg);
+    }
+    
+    .info-module {
+        background: var(--darkened-bg);
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+    
+    .info-module h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--body-quiet-color);
+        line-height: 1.4;
+    }
+    
+    .info-module ul {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--body-fg);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    
+    .info-module li {
+        margin: 4px 0;
+    }
+    
+    .form-row {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .form-row:last-child {
+        border-bottom: none;
+    }
+    
+    .form-row label {
+        display: block;
+        font-weight: 500;
+        font-size: 13px;
+        color: var(--body-quiet-color);
+        margin-bottom: 5px;
+        line-height: 1.4;
+    }
+    
+    .form-row input[type="text"],
+    .form-row input[type="file"],
+    .form-row select,
+    .form-row textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background: var(--body-bg);
+        color: var(--body-fg);
+        font-size: 13px;
+        box-sizing: border-box;
+        line-height: 1.4;
+    }
+    
+    .form-row input[type="text"]:focus,
+    .form-row select:focus {
+        border-color: var(--selected-bg);
+        outline: none;
+    }
+    
+    .form-row .help {
+        font-size: 11px;
+        color: var(--body-quiet-color);
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+    
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 32px;
+    }
+    
+    .checkbox-row input[type="checkbox"] {
+        margin: 0;
+    }
+    
+    .checkbox-row label {
+        margin-bottom: 0;
+        font-weight: normal;
+    }
+    
+    .submit-row {
+        margin-top: 20px;
+        padding: 12px 0;
+        background: var(--darkened-bg);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        gap: 10px;
+    }
+    
+    .submit-row input[type="submit"],
+    .submit-row button {
+        background: var(--button-bg);
+        color: var(--button-fg);
+        padding: 8px 15px;
+        border: none;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        line-height: 1.4;
+        min-height: 36px;
+    }
+    
+    .submit-row input[type="submit"]:hover,
+    .submit-row button:hover {
+        background: var(--button-hover-bg);
+    }
+    
+    .submit-row .cancel-link {
+        background: var(--delete-button-bg);
+        color: var(--button-fg);
+        padding: 8px 15px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 13px;
+        line-height: 1.4;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .submit-row .cancel-link:hover {
+        background: var(--delete-button-hover-bg);
+    }
+    
+    .example-module {
+        background: var(--darkened-bg);
+        padding: 15px;
+        margin-top: 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+    
+    .example-module h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--body-quiet-color);
+        line-height: 1.4;
+    }
+    
+    .example-content {
+        background: var(--body-bg);
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow: auto;
+        color: var(--body-fg);
+    }
+    
+    .stats-module {
+        margin-top: 20px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        flex: 1;
+        min-width: 100px;
+        background: var(--darkened-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 10px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 500;
+        color: var(--body-fg);
+        line-height: 1.3;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: var(--body-quiet-color);
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 24px;
+        background: var(--darkened-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: var(--selected-bg);
+        width: 0%;
+        transition: width 0.3s;
+    }
+    
+    #progress-text {
+        font-size: 12px;
+        color: var(--body-quiet-color);
+        text-align: center;
+        margin: 5px 0;
+        line-height: 1.4;
+    }
+    
+    .error-list {
+        background: #ffefef;
+        border: 1px solid #e0b4b4;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 10px 0;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .error-item {
+        color: #9f3a38;
+        font-size: 12px;
+        padding: 3px 0;
+        border-bottom: 1px solid #e0b4b4;
+        line-height: 1.4;
+    }
+    
+    .error-item:last-child {
+        border-bottom: none;
+    }
+    
+    /* Исправление высоты для select */
+    select {
+        min-height: 36px;
+    }
+    
+    /* Исправление для file input */
+    input[type="file"] {
+        padding: 6px;
+        min-height: 36px;
+    }
+    
+    /* Исправление отступов */
+    .form-row {
+        min-height: 40px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="import-module">
+        <div class="import-header">
+            <h2>Импорт заданий из файла</h2>
+            <a href="{% url 'admin:tickets_task_changelist' %}" class="back-link">← Вернуться к списку</a>
+        </div>
+        
+        <div class="info-module">
+            <h3>Требования к формату файла</h3>
+            <ul>
+                <li>Кодировка файла: UTF-8</li>
+                <li>Каждое задание начинается с названия (первая строка)</li>
+                <li>Описание задания может занимать несколько строк</li>
+                <li>Задания разделяются строкой-разделителем (по умолчанию "---")</li>
+                <li>Пустые строки между заданиями игнорируются</li>
+            </ul>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data" id="import-form">
+            {% csrf_token %}
+            
+            <div class="form-row">
+                <label for="id_file">{{ form.file.label }} *</label>
+                {{ form.file }}
+                <div class="help">{{ form.file.help_text }}</div>
+                {{ form.file.errors }}
+            </div>
+            
+            <div class="form-row">
+                <label for="id_subject">{{ form.subject.label }} *</label>
+                <select name="subject" id="id_subject" required>
+                    <option value="">---------</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.course }} курс)</option>
+                    {% endfor %}
+                </select>
+                <div class="help">Предмет, к которому будут привязаны задания</div>
+            </div>
+            
+            <div class="form-row">
+                <label for="id_course">{{ form.course.label }} *</label>
+                {{ form.course }}
+                <div class="help">Курс, для которого предназначены задания</div>
+            </div>
+            
+            <div class="form-row">
+                <label for="id_task_type">{{ form.task_type.label }} *</label>
+                {{ form.task_type }}
+            </div>
+            
+            <div class="form-row">
+                <label for="id_delimiter">{{ form.delimiter.label }}</label>
+                {{ form.delimiter }}
+                <div class="help">{{ form.delimiter.help_text }}</div>
+            </div>
+            
+            <div class="form-row checkbox-row">
+                {{ form.override_existing }}
+                <label for="id_override_existing">{{ form.override_existing.label }}</label>
+            </div>
+            <div class="help" style="margin-left: 28px; margin-top: 0;">{{ form.override_existing.help_text }}</div>
+            
+            <div class="submit-row">
+                <button type="submit" onclick="showProgress()">
+                    <span id="btn-text">Начать импорт</span>
+                    <span id="btn-spinner" style="display: none;">Импорт...</span>
+                </button>
+                <a href="{% url 'admin:tickets_task_changelist' %}" class="cancel-link">Отмена</a>
+            </div>
+        </form>
+        
+        <div id="progress-bar" style="display: none; margin-top: 15px;">
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <p id="progress-text">Обработка файла...</p>
+        </div>
+        
+        <div class="example-module">
+            <h3>Пример оформления файла</h3>
+            <div class="example-content">
+Разработка структуры данных проекта
+Опишите структуру входных и выходных данных, функциональные характеристики программы для решения системы двух линейных уравнений по методу Крамера.
+Формулы для справки: x = Δx/Δ, y = Δy/Δ
+
+---
+Разработка мобильного приложения
+На главной активности ListView, два EditText, кнопки с операциями * / % ^ и кнопка Clear. При щелчке по кнопке с операцией соответствующий арифметический пример с введенными значениями должен добавиться в общий список.
+
+---
+Разработка на C++
+Дана квадратная матрица размером N*N. Выделим в матрице четыре четверти, ограниченные главной и побочной диагоналями. Требуется написать программу, которая обменивает местами элементы верхней и нижней четверти.
+            </div>
+        </div>
+        
+        <div class="stats-module">
+            <div class="stat-item">
+                <div class="stat-value">{{ total_tasks|default:"0" }}</div>
+                <div class="stat-label">Всего заданий</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ oral_tasks|default:"0" }}</div>
+                <div class="stat-label">Устных</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ practical_tasks|default:"0" }}</div>
+                <div class="stat-label">Практических</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showProgress() {
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline';
+    progressBar.style.display = 'block';
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 90) {
+            progress = 90;
+            clearInterval(interval);
+        }
+        progressFill.style.width = progress + '%';
+        progressText.innerText = `Обработка файла... ${Math.round(progress)}%`;
+    }, 200);
+}
+</script>
+{% endblock %}
