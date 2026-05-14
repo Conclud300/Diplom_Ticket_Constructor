@@ -128,7 +128,6 @@ class TaskAdmin(admin.ModelAdmin):
         if request.method == 'POST':
             form = TaskImportForm(request.POST, request.FILES)
             if form.is_valid():
-                # Получаем данные из формы
                 file = form.cleaned_data['file']
                 subject = form.cleaned_data['subject']
                 course = form.cleaned_data['course']
@@ -136,9 +135,7 @@ class TaskAdmin(admin.ModelAdmin):
                 delimiter = form.cleaned_data['delimiter']
                 override = form.cleaned_data['override_existing']
                 
-                # Читаем файл
                 try:
-                    # Пробуем разные кодировки
                     content = None
                     encodings = ['utf-8', 'windows-1251', 'koi8-r']
                     
@@ -166,7 +163,6 @@ class TaskAdmin(admin.ModelAdmin):
                         'title': 'Импорт заданий из файла'
                     })
                 
-                # Разделяем на задания
                 raw_tasks = content.split(delimiter)
                 
                 imported = 0
@@ -178,11 +174,9 @@ class TaskAdmin(admin.ModelAdmin):
                     if not raw_task:
                         continue
                     
-                    # Разделяем на название и описание
                     lines = raw_task.split('\n')
                     title = lines[0].strip()
                     
-                    # Ограничиваем длину названия
                     if len(title) > 500:
                         title = title[:497] + '...'
                     
@@ -193,7 +187,6 @@ class TaskAdmin(admin.ModelAdmin):
                         continue
                     
                     try:
-                        # Проверяем, существует ли уже такое задание
                         existing = Task.objects.filter(
                             title=title,
                             subject=subject,
@@ -202,12 +195,10 @@ class TaskAdmin(admin.ModelAdmin):
                         ).first()
                         
                         if existing and override:
-                            # Обновляем существующее
                             existing.description = description
                             existing.save()
                             updated += 1
                         elif not existing:
-                            # Создаем новое
                             Task.objects.create(
                                 title=title,
                                 description=description,
@@ -218,13 +209,11 @@ class TaskAdmin(admin.ModelAdmin):
                             )
                             imported += 1
                         else:
-                            # Пропускаем
-                            errors.append(f'Задание {i}: "{title[:30]}..." уже существует (используйте "Перезаписать" для обновления)')
+                            errors.append(f'Задание {i}: "{title[:30]}..." уже существует')
                             
                     except Exception as e:
-                        errors.append(f'Задание {i}: ошибка создания - {str(e)}')
+                        errors.append(f'Задание {i}: ошибка - {str(e)}')
                 
-                # Сохраняем информацию об импорте
                 if imported > 0 or updated > 0:
                     TaskImportBatch.objects.create(
                         file_name=file.name,
@@ -236,24 +225,22 @@ class TaskAdmin(admin.ModelAdmin):
                         created_by=request.user
                     )
                 
-                # Сообщаем результат
                 if imported > 0 or updated > 0:
                     messages.success(
                         request, 
-                        f'✅ Импорт завершен! Создано: {imported}, обновлено: {updated}'
+                        f'Импорт завершен! Создано: {imported}, обновлено: {updated}'
                     )
                 else:
-                    messages.warning(request, '⚠️ Не импортировано ни одного задания')
+                    messages.warning(request, 'Не импортировано ни одного задания')
                 
                 if errors:
-                    for error in errors[:10]:  # Показываем только первые 10 ошибок
+                    for error in errors[:10]:
                         messages.warning(request, error)
                     
                 return redirect('admin:tickets_task_changelist')
         else:
             form = TaskImportForm()
         
-        # Получаем статистику для отображения
         total_tasks = Task.objects.count()
         oral_tasks = Task.objects.filter(task_type='oral').count()
         practical_tasks = Task.objects.filter(task_type='practical').count()
@@ -270,23 +257,31 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(GeneratedTicket)
 class GeneratedTicketAdmin(admin.ModelAdmin):
-    list_display = ('ticket_number', 'subject', 'teacher', 'chairman', 'deputy_director', 'generation_date')
-    list_filter = ('subject', 'teacher', 'chairman', 'deputy_director', 'generation_date')
+    # ИСПРАВЛЕНО: убрали teacher (ForeignKey), добавили get_teachers (ManyToMany)
+    list_display = ('ticket_number', 'subject', 'get_teachers', 'chairman', 'deputy_director', 'generation_date')
+    # ИСПРАВЛЕНО: убрали teacher из list_filter
+    list_filter = ('subject', 'chairman', 'deputy_director', 'semester', 'generation_date')
     search_fields = ('ticket_number', 'subject__name')
     readonly_fields = ('generation_date',)
+    
+    def get_teachers(self, obj):
+        """Возвращает список преподавателей"""
+        return ', '.join([t.full_name for t in obj.teachers.all()])
+    get_teachers.short_description = 'Преподаватели'
     
     fieldsets = (
         ('Основная информация', {
             'fields': ('ticket_number', 'subject', 'semester')
         }),
         ('Участники', {
-            'fields': ('groups', 'teacher', 'chairman', 'deputy_director')
+            'fields': ('groups', 'teachers', 'chairman', 'deputy_director')
         }),
         ('Дата', {
             'fields': ('generation_date',)
         }),
     )
-    filter_horizontal = ('groups',)
+    # ИСПРАВЛЕНО: добавили teachers в filter_horizontal
+    filter_horizontal = ('groups', 'teachers')
 
 @admin.register(TaskImportBatch)
 class TaskImportBatchAdmin(admin.ModelAdmin):
