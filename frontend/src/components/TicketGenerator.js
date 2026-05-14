@@ -255,7 +255,8 @@ const TicketGenerator = ({ teacher, user }) => {
         subject: ticket.subject,
         groups: ticket.groups,
         chairman: ticket.chairman,
-        teacher: ticket.teacher,
+        deputy_director: ticket.deputy_director,
+        teachers: ticket.teachers || [],
         semester: ticket.semester,
         tasks: ticket.tasks.map(task => ({
           id: task.id,
@@ -369,7 +370,13 @@ const TicketGenerator = ({ teacher, user }) => {
           </style>
         </head>
         <body>
-          ${generatedTickets.map((ticket, idx) => `
+          ${generatedTickets.map((ticket, idx) => {
+            const teachersNames = ticket.teachers && ticket.teachers.length > 0 
+              ? ticket.teachers.map(t => t.full_name).join(', ') 
+              : '________________';
+            const deputyName = ticket.deputy_director?.full_name || 'Конакина Е.Г.';
+            
+            return `
             <div class="ticket">
               <div class="header">
                 <div class="ministry">МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ</div>
@@ -403,7 +410,7 @@ const TicketGenerator = ({ teacher, user }) => {
                       Зам.директора ИСПО<br>
                       по УМР<br>
                       ________________<br>
-                      ${ticket.deputy_director?.full_name || 'Конакина Е.Г.'}<br>
+                      ${deputyName}<br>
                       «__» __________ 2025 г.
                     </div>
                   </td>
@@ -423,11 +430,12 @@ const TicketGenerator = ({ teacher, user }) => {
               </div>
               
               <div class="teachers">
-                Преподаватели: ________________ ${ticket.teacher?.full_name || '________________'}
+                Преподаватели: ________________ ${teachersNames}
               </div>
             </div>
             ${idx < generatedTickets.length - 1 ? '<div class="page-break"></div>' : ''}
-          `).join('')}
+            `;
+          }).join('')}
         </body>
         </html>
       `;
@@ -676,17 +684,35 @@ const TicketGenerator = ({ teacher, user }) => {
                     <Card variant="outlined">
                       <CardContent>
                         <Typography variant="h6" gutterBottom color="primary">{previewTicket.subject?.name}</Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | Семестр: {previewTicket.semester}</Typography>
-                        {previewTicket.teacher && <Typography variant="body2" color="text.secondary" gutterBottom>Преподаватель: {previewTicket.teacher.full_name}</Typography>}
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Группы: {previewTicket.groups?.map(g => g.name).join(', ')} | Семестр: {previewTicket.semester}
+                        </Typography>
+                        {previewTicket.deputy_director && (
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Зам. директора: {previewTicket.deputy_director.full_name}
+                          </Typography>
+                        )}
+                        {previewTicket.teachers && previewTicket.teachers.length > 0 && (
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Преподаватели: {previewTicket.teachers.map(t => t.full_name).join(', ')}
+                          </Typography>
+                        )}
                         <Divider sx={{ my: 2 }} />
-                        <List>{previewTicket.tasks?.map((task, index) => (
-                          <ListItem key={task.id || index} sx={{ alignItems: 'flex-start' }}>
-                            <Box sx={{ bgcolor: task.task_type === 'oral' ? '#e8f5e9' : '#e3f2fd', p: 1, borderRadius: 1, mr: 2, minWidth: 100, textAlign: 'center' }}>
-                              <Typography variant="caption" sx={{ fontWeight: 'bold', color: task.task_type === 'oral' ? '#2e7d32' : '#1565c0' }}>{task.task_type === 'oral' ? 'УСТНОЕ' : 'ПРАКТИЧЕСКОЕ'}</Typography>
-                            </Box>
-                            <ListItemText primary={<Typography variant="body1"><strong>{task.order || index + 1}. {task.title}</strong></Typography>} secondary={<Typography variant="body2" color="text.secondary">{task.description}</Typography>} />
-                          </ListItem>
-                        ))}</List>
+                        <List>
+                          {previewTicket.tasks?.map((task, index) => (
+                            <ListItem key={task.id || index} sx={{ alignItems: 'flex-start' }}>
+                              <Box sx={{ bgcolor: task.task_type === 'oral' ? '#e8f5e9' : '#e3f2fd', p: 1, borderRadius: 1, mr: 2, minWidth: 100, textAlign: 'center' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: task.task_type === 'oral' ? '#2e7d32' : '#1565c0' }}>
+                                  {task.task_type === 'oral' ? 'УСТНОЕ' : 'ПРАКТИЧЕСКОЕ'}
+                                </Typography>
+                              </Box>
+                              <ListItemText
+                                primary={<Typography variant="body1"><strong>{task.order || index + 1}. {task.title}</strong></Typography>}
+                                secondary={<Typography variant="body2" color="text.secondary">{task.description}</Typography>}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
                       </CardContent>
                     </Card>
                   </Paper>
