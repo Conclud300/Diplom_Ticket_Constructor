@@ -165,14 +165,13 @@ def test_api(request):
         ]
     })
 
-# ============ СТАТИСТИКА ЗАДАНИЙ (ИСПРАВЛЕННАЯ) ============
+# ============ СТАТИСТИКА ЗАДАНИЙ ============
 
 class TaskStatisticsView(APIView):
-    """Статистика по заданиям для выбранного предмета (без учета курса заданий)"""
+    """Статистика по заданиям для выбранного предмета"""
     permission_classes = [permissions.AllowAny]
     
     def get(self, request):
-        """Получить статистику по заданиям для предмета"""
         try:
             subject_id = request.GET.get('subject_id')
             
@@ -194,7 +193,6 @@ class TaskStatisticsView(APIView):
                     'error': 'subject_id должен быть числом'
                 })
             
-            # Получаем все задания для этого предмета (без фильтра по курсу!)
             oral_count = Task.objects.filter(
                 subject_id=subject_id,
                 task_type='oral'
@@ -221,18 +219,16 @@ class TaskStatisticsView(APIView):
                 'error': str(e)
             })
 
-# ============ ГЕНЕРАЦИЯ БИЛЕТОВ ============
+# ============ ГЕНЕРАЦИЯ БИЛЕТОВ (ИСПРАВЛЕНА) ============
 
 class TicketGenerationView(APIView):
     """Генерация экзаменационных билетов"""
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
-        """Генерация билетов"""
         try:
             data = request.data
             
-            # Проверяем обязательные поля
             required_fields = ['subject_id', 'group_ids', 'chairman_id', 'teacher_ids', 'num_tickets']
             for field in required_fields:
                 if field not in data:
@@ -244,7 +240,7 @@ class TicketGenerationView(APIView):
             subject_id = data['subject_id']
             group_ids = data['group_ids']
             chairman_id = data['chairman_id']
-            teacher_ids = data['teacher_ids']
+            teacher_ids = data['teacher_ids']  # Список ID преподавателей
             deputy_director_id = data.get('deputy_director_id')
             num_tickets = data['num_tickets']
             oral_per_ticket = data.get('oral_per_ticket', 2)
@@ -256,6 +252,7 @@ class TicketGenerationView(APIView):
                 subject = Subject.objects.get(id=subject_id, is_active=True)
                 groups = StudentGroup.objects.filter(id__in=group_ids, is_active=True)
                 chairman = PZKChairman.objects.get(id=chairman_id, is_active=True)
+                # ИСПРАВЛЕНО: получаем всех преподавателей
                 teachers = Teacher.objects.filter(id__in=teacher_ids, is_active=True)
                 deputy_director = None
                 if deputy_director_id:
@@ -271,7 +268,7 @@ class TicketGenerationView(APIView):
             except DeputyDirector.DoesNotExist:
                 return Response({'error': 'Заместитель директора не найден'}, status=404)
             
-            # Получаем ВСЕ задания для данного предмета (без фильтра по курсу!)
+            # Получаем все задания для данного предмета
             oral_tasks = list(Task.objects.filter(
                 subject=subject,
                 task_type='oral'
@@ -300,23 +297,23 @@ class TicketGenerationView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Перемешиваем задания для случайного выбора
+            # Перемешиваем задания
             random.shuffle(oral_tasks)
             random.shuffle(practical_tasks)
             
-            # Удаляем старые билеты для этой комбинации (если есть)
+            # Удаляем старые билеты
             GeneratedTicket.objects.filter(
                 subject=subject,
                 chairman=chairman,
                 semester=semester
             ).delete()
             
-            # Генерируем билеты
             tickets = []
             oral_idx = 0
             practical_idx = 0
             
             for i in range(1, num_tickets + 1):
+                # ИСПРАВЛЕНО: создаем билет
                 ticket = GeneratedTicket.objects.create(
                     ticket_number=i,
                     subject=subject,
@@ -328,10 +325,11 @@ class TicketGenerationView(APIView):
                 
                 ticket.groups.set(groups)
                 
+                # ИСПРАВЛЕНО: добавляем ВСЕХ выбранных преподавателей
                 if teachers.exists():
-                    ticket.teacher = teachers.first()
-                    ticket.save()
+                    ticket.teachers.set(teachers)
                 
+                # Добавляем устные задания
                 for j in range(oral_per_ticket):
                     if oral_idx < len(oral_tasks):
                         task = oral_tasks[oral_idx]
@@ -342,6 +340,7 @@ class TicketGenerationView(APIView):
                         )
                         oral_idx += 1
                 
+                # Добавляем практические задания
                 for k in range(practical_per_ticket):
                     if practical_idx < len(practical_tasks):
                         task = practical_tasks[practical_idx]
@@ -352,6 +351,7 @@ class TicketGenerationView(APIView):
                         )
                         practical_idx += 1
                 
+                # ИСПРАВЛЕНО: формируем ответ с teachers (список)
                 ticket_data = {
                     'id': ticket.id,
                     'ticket_number': ticket.ticket_number,
@@ -359,7 +359,7 @@ class TicketGenerationView(APIView):
                     'groups': StudentGroupSerializer(groups, many=True).data,
                     'chairman': PZKChairmanSerializer(chairman).data,
                     'deputy_director': DeputyDirectorSerializer(deputy_director).data if deputy_director else None,
-                    'teacher': TeacherSerializer(ticket.teacher).data if ticket.teacher else None,
+                    'teachers': TeacherSerializer(teachers, many=True).data,  # ИСПРАВЛЕНО: список
                     'semester': semester,
                     'tasks': []
                 }
@@ -396,7 +396,6 @@ class TicketPreviewView(APIView):
     permission_classes = [permissions.AllowAny]
     
     def get(self, request):
-        """Получить список сгенерированных билетов"""
         try:
             subject_id = request.GET.get('subject_id')
             chairman_id = request.GET.get('chairman_id')
@@ -420,7 +419,7 @@ class TicketPreviewView(APIView):
                     'groups': StudentGroupSerializer(ticket.groups.all(), many=True).data,
                     'chairman': PZKChairmanSerializer(ticket.chairman).data,
                     'deputy_director': DeputyDirectorSerializer(ticket.deputy_director).data if ticket.deputy_director else None,
-                    'teacher': TeacherSerializer(ticket.teacher).data if ticket.teacher else None,
+                    'teachers': TeacherSerializer(ticket.teachers.all(), many=True).data,  # ИСПРАВЛЕНО: teachers
                     'semester': ticket.semester,
                     'generation_date': ticket.generation_date,
                     'tasks': []
@@ -442,14 +441,13 @@ class TicketPreviewView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
-# ============ ГЕНЕРАЦИЯ PDF ============
+# ============ ГЕНЕРАЦИЯ PDF (ИСПРАВЛЕНА) ============
 
 class PDFGenerationView(APIView):
     """Генерация PDF с билетами"""
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
-        """Генерация HTML файла с билетами"""
         try:
             data = request.data
             ticket_ids = data.get('ticket_ids', [])
@@ -504,6 +502,13 @@ class PDFGenerationView(APIView):
             for idx, ticket in enumerate(tickets):
                 ticket_tasks = TicketTask.objects.filter(ticket=ticket).order_by('order')
                 
+                # ИСПРАВЛЕНО: получаем ФИО заместителя директора из БД
+                deputy_name = ticket.deputy_director.full_name if ticket.deputy_director else 'Конакина Е.Г.'
+                
+                # ИСПРАВЛЕНО: получаем список преподавателей
+                teachers_list = list(ticket.teachers.all())
+                teachers_names = ', '.join([t.full_name for t in teachers_list]) if teachers_list else '________________'
+                
                 html_content += f"""
                 <div class="ticket">
                     <div class="header">
@@ -538,7 +543,7 @@ class PDFGenerationView(APIView):
                                     Зам.директора ИСПО<br>
                                     по УМР<br>
                                     ________________<br>
-                                    {ticket.deputy_director.full_name if ticket.deputy_director else 'Конакина Е.Г.'}<br>
+                                    {deputy_name}<br>
                                     «__» __________ 2025 г.
                                 </div>
                             </td>
@@ -564,7 +569,7 @@ class PDFGenerationView(APIView):
                     </div>
                     
                     <div class="teachers">
-                        Преподаватели: ________________ {ticket.teacher.full_name if ticket.teacher else '________________'}
+                        Преподаватели: ________________ {teachers_names}
                     </div>
                 </div>
                 """

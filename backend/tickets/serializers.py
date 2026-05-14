@@ -41,7 +41,7 @@ class DeputyDirectorSerializer(serializers.ModelSerializer):
 
 class GeneratedTicketSerializer(serializers.ModelSerializer):
     subject = SubjectSerializer(read_only=True)
-    teacher = TeacherSerializer(read_only=True)
+    teachers = TeacherSerializer(many=True, read_only=True)  # ИСПРАВЛЕНО: teachers
     chairman = PZKChairmanSerializer(read_only=True)
     deputy_director = DeputyDirectorSerializer(read_only=True)
     groups = StudentGroupSerializer(many=True, read_only=True)
